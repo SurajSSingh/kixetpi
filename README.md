@@ -1,6 +1,10 @@
-# Starlight Starter Kit: Basics
+# KixetPi
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+A research-stage Astro Starlight documentation site for a leaner, hardened Raspberry Pi OS Lite installation. The guide adapts selected DietPi and Kicksecure practices without converting distributions. Nix and Home Manager are optional and manage user packages, not the operating system.
+
+The combined setup has not been tested on Raspberry Pi hardware. Commands in the published guides are instructions for a separate test Pi, not setup commands for this website or its development machine.
+
+## Develop the site
 
 Use Deno 2 for dependency management and project commands. Installation and production builds have been verified with Deno 2.9.5.
 
@@ -11,31 +15,21 @@ deno task dev
 
 Dependencies and scripts are defined in `package.json`; Deno resolves packages from the npm registry and records dependency versions in `deno.lock`. Keep this lockfile rather than generating npm, pnpm, or Yarn lockfiles. No separate `deno.json` is required.
 
-## 🚀 Project Structure
+## Content
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+The site has an overview and four main guides:
 
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── deno.lock
-├── package.json
-└── tsconfig.json
-```
+| File in `src/content/docs/` | Purpose |
+| --- | --- |
+| `index.md` | Scope, package ownership, safety, and walkthrough record. |
+| `guides/raspberry-pi-os.md` | Image selection, first boot, updates, baseline, and recovery. |
+| `guides/dietpi.md` | Selective service and package reduction with resource tradeoffs. |
+| `guides/kicksecure.md` | SSH, firewall, update checks, and confinement limits. |
+| `guides/nix.md` | Optional declarative user packages and rollback. |
 
 Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
-
-Static assets, like favicons, can be placed in the `public/` directory.
-
-## 🧞 Commands
+## Commands
 
 All commands are run from the root of the project, from a terminal:
 
@@ -50,6 +44,12 @@ All commands are run from the root of the project, from a terminal:
 
 To run the dev server in the background, use `deno task dev --background`. Manage it with `deno task astro dev status`, `deno task astro dev logs`, and `deno task astro dev stop`.
 
-## 👀 Want to learn more?
+## Validate changes
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+Run `deno task build` to validate content and generate the static site and search index. With dependencies already installed, `deno task --node-modules-dir=manual --frozen build` uses the existing dependency directory and refuses lockfile changes. A website build does not test any Raspberry Pi instructions.
+
+Keep source links next to the relevant guidance, distinguish upstream facts from project choices, and record hardware test results before claiming support. Do not add distribution conversion scripts or run the guide's system commands on the documentation host.
+
+Deployment has no configured public URL yet. Set Astro's `site` only when the actual destination is known, and configure `base` and content links if hosting under a subpath.
+
+Site tooling references are the [Starlight documentation](https://starlight.astro.build/) and [Astro documentation](https://docs.astro.build/).

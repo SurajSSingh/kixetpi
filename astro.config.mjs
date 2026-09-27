@@ -6,19 +6,17 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
 	integrations: [
 		starlight({
-			title: 'My Docs',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/withastro/starlight' }],
+			title: 'KixetPi',
 			sidebar: [
+				{ label: 'Start here', slug: '' },
 				{
-					label: 'Guides',
+					label: 'Build your system',
 					items: [
-						// Each item here is one entry in the navigation menu.
-						{ label: 'Example Guide', slug: 'guides/example' },
+						{ label: '1. Raspberry Pi OS Lite', slug: 'guides/raspberry-pi-os' },
+						{ label: '2. DietPi-inspired reduction', slug: 'guides/dietpi' },
+						{ label: '3. Kicksecure-inspired hardening', slug: 'guides/kicksecure' },
+						{ label: '4. Nix for your home', slug: 'guides/nix', badge: 'Optional' },
 					],
-				},
-				{
-					label: 'Reference',
-					items: [{ autogenerate: { directory: 'reference' } }],
 				},
 			],
 		}),
