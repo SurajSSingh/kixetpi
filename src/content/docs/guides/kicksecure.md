@@ -18,7 +18,7 @@ Use a test Pi with a known-good card backup and working local console access. SS
 | Enable UFW | Disable it at the local console. This leaves its saved rules and installed package in place. |
 | Add service isolation | Remove only the trial drop-in, reload systemd, then restart the application. This does not restore application data. |
 
-Stop after any failed check instead of stacking changes. A **drop-in** is a small configuration file added beside the main configuration, so it can be removed independently.
+Stop after any failed check instead of making further changes. A drop-in is a small configuration file added beside the main configuration. You can remove it without changing the main file.
 
 ## This is not a Kicksecure conversion
 
@@ -26,7 +26,7 @@ Kicksecure's [Raspberry Pi](https://www.kicksecure.com/wiki/Raspberry_Pi) and [A
 
 Do not add Kicksecure repositories or install its metapackages, `security-misc`, replacement kernels, or boot-management packages on this base. Do not copy GRUB commands, x86-specific settings, or large sysctl lists. Those changes can conflict with Pi boot, networking, devices, or package management.
 
-The transferable ideas are least privilege, fewer exposed services, maintained software, and confinement where it actually applies. We use Raspberry Pi OS and Debian tools for the procedures below. This is a project adaptation, not an upstream-supported Kicksecure-on-Pi installation.
+The practices we use here are granting only needed privileges, exposing fewer services, keeping software updated, and restricting what applications can access where possible. The procedures below use Raspberry Pi OS and Debian tools. Kicksecure does not support this adaptation as a Kicksecure installation.
 
 ## 1. Check updates and administrative privileges
 
@@ -50,7 +50,7 @@ Review whether `sudo -l` grants `NOPASSWD: ALL`. If it does, code running as tha
 
 ### Optional: require a sudo password
 
-First confirm that your account has a known, working local password and that you can log in at the console. Open a root shell in the original session and **keep it open** until a separate normal-user session has proved sudo still works. A normal login will not retain root access if a sudo policy breaks.
+First confirm that you know your account's local password and can use it to log in at the console. Open a root shell in the original session and **keep it open** until you have verified sudo in a separate normal-user session. A normal login cannot give you root access if the sudo policy is broken.
 
 ```sh title="Pi original session: retain recovery access"
 sudo -i
@@ -75,7 +75,7 @@ sudo -k
 sudo /usr/bin/id -u
 ```
 
-Require a password prompt and `0`. A successful command without a prompt means passwordless access may still be granted; inspect other matching rules. If authentication or access fails, restore the original grant with `visudo` in the retained root shell. Only then leave the root shell with `exit`.
+Confirm that sudo prompts for your password and the command prints `0`. If the command succeeds without a prompt, another rule may still allow passwordless access. Inspect the other matching rules. If authentication or access fails, restore the original grant with `visudo` in the retained root shell. Only then leave the root shell with `exit`.
 
 **Reference:** [Debian visudo(8)](https://manpages.debian.org/trixie/sudo/visudo.8.en.html), [sudoers(5) rule order and PASSWD tags](https://manpages.debian.org/trixie/sudo/sudoers.5.en.html), and installed `man sudo` for `-i` and `-k`.
 
@@ -167,11 +167,11 @@ sudo /usr/sbin/sshd -t
 
 ## 3. Add a firewall for a simple headless Pi
 
-This example is only for a fresh, non-routing Pi whose sole intentional inbound application is SSH on TCP port 22. It is not a router, access point, VPN gateway, container host, or public-server policy. If your workload needs other inbound ports, document and allow them deliberately before enabling a firewall.
+This example is only for a fresh Pi that does not route traffic and needs incoming connections only for SSH on TCP port 22. The policy is not for a router, access point, VPN gateway, container host, or public server. If your workload needs other inbound ports, document and allow them before enabling a firewall.
 
 Use UFW from the existing APT repositories as a simpler interface than a hand-written nftables ruleset. This is a project choice, not a copy of Kicksecure's firewall.
 
-First inspect listening ports and existing firewall ownership. Absent or inactive firewall services are expected on a fresh image and can make `is-active` return nonzero; continue the inspection rather than enabling them:
+First inspect listening ports and check whether a firewall manager is already in use. Firewall services may be absent or inactive on a fresh image. This can make `is-active` return nonzero. Continue the inspection rather than enabling those services:
 
 ```sh title="Pi: inspect before installing another firewall manager"
 sudo ss -lntup
@@ -239,7 +239,7 @@ This restores the pre-example inactive state but keeps the staged rules for insp
 
 ## 4. Check AppArmor rather than assume confinement
 
-Kicksecure uses AppArmor, but copying that name into a package list does not reproduce its policies. A kernel must support and enable the security module, and the actual program needs a loaded, enforcing profile.
+Kicksecure uses AppArmor, but installing the package does not reproduce Kicksecure's policies. The kernel must support AppArmor and have it enabled. The program also needs a loaded profile that enforces restrictions.
 
 Inspect the Pi. The file may be absent if the kernel security filesystem is unavailable; record that result rather than assuming protection exists:
 
@@ -280,7 +280,7 @@ Read the unit, especially its user, writable paths, and privilege requirements. 
 
 Continue only if the application does not need privilege-gaining executables or temporary files shared with other services. Create a dedicated drop-in **only if this filename is unused**.
 
-**Recovery:** a restart can fail. Remove only `60-kixetpi-hardening.conf`, run `sudo systemctl daemon-reload`, then restart this service. Do not use `systemctl revert`, which also removes unrelated overrides.
+If the service fails to restart after this change, remove only `60-kixetpi-hardening.conf`. Run `sudo systemctl daemon-reload`, then restart the service. Do not use `systemctl revert`, which also removes unrelated overrides.
 
 ```sh title="Pi: create an isolated trial drop-in"
 sudo mkdir -p /etc/systemd/system/YOUR_APP.service.d
@@ -340,7 +340,7 @@ sudo ufw status verbose
 
 **Reference:** [Debian ufw(8) status](https://manpages.debian.org/trixie/ufw/ufw.8.en.html).
 
-Explain every remaining listening service. Record AppArmor coverage honestly, including unavailable or unconfined applications. Back up this working state before adding more software.
+Explain why each remaining listening service is needed. Record which applications AppArmor confines and which it does not, including when AppArmor is unavailable. Back up this working state before adding more software.
 
 You can stop here and keep an APT-only system. If the hardware has enough resources and you want declarative user packages, continue to the [optional Nix guide](/guides/nix/).
 
@@ -351,7 +351,7 @@ Reviewed on 28 September 2026. No claim here establishes Kicksecure equivalence 
 - [Kicksecure on Raspberry Pi](https://www.kicksecure.com/wiki/Raspberry_Pi), [ARM64 status](https://www.kicksecure.com/wiki/ARM64), and [Debian conversion](https://www.kicksecure.com/wiki/Debian).
 - [Kicksecure security-misc](https://www.kicksecure.com/wiki/Security-misc) and [bootloader-related packages](https://www.kicksecure.com/wiki/Dev/boot#Bootloader-related_Kicksecure_and_Whonix_packages).
 - [Raspberry Pi SSH access](https://www.raspberrypi.com/documentation/computers/remote-access.html#ssh) and [software updates](https://www.raspberrypi.com/documentation/computers/os.html#update-software).
-- [Raspberry Pi documentation source for SSH](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/remote-access/ssh.adoc) and [updates](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/os/updating.adoc) (the published pages returned 403 during this review).
+- [Raspberry Pi documentation source for SSH](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/remote-access/ssh.adoc) and [updates](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/os/updating.adoc). The published pages returned HTTP 403 during this review.
 - [Debian OpenSSH configuration](https://manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html) and [configuration validation](https://manpages.debian.org/trixie/openssh-server/sshd.8.en.html).
 - [Debian visudo validation and recovery precautions](https://manpages.debian.org/trixie/sudo/visudo.8.en.html) and [unattended-upgrade dry-run behavior](https://manpages.debian.org/trixie/unattended-upgrades/unattended-upgrade.8.en.html).
 - [Debian UFW manual](https://manpages.debian.org/trixie/ufw/ufw.8.en.html), including remote-management warnings and default network allowances.

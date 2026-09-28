@@ -26,7 +26,7 @@ Complete each stage's checks before continuing. Stopping after stage 3 is a comp
 
 Raspberry Pi OS, DietPi, and Kicksecure use Debian foundations, but that does not make their repositories or configuration packages interchangeable. They make different choices about kernels, supported machines, services, package dependencies, and release lifecycles.
 
-**Distromorphing** means converting an installed Linux distribution into another one. This guide does not do that: it borrows individual practices, not repositories or whole configurations.
+Distromorphing means converting an installed Linux distribution into another one. This guide borrows individual practices, not repositories or whole configurations.
 
 Nix is a package manager that can run alongside an existing Linux distribution. NixOS is a separate Linux distribution built around Nix. This guide uses Nix and optional Home Manager configuration, not NixOS modules or `nixos-rebuild`.
 
@@ -34,18 +34,18 @@ Nix is a package manager that can run alongside an existing Linux distribution. 
 | --- | --- |
 | Raspberry Pi OS and APT | Kernel, firmware, boot files, networking, SSH, firewall, system services, security updates, and the host's system libraries. |
 | Local administrator | Reviewed configuration files, backups, service decisions, tests, and recovery. |
-| Optional Nix installation | Its store, build users, daemon, and Nix-provided package dependencies. It adds system infrastructure even though its packages are for user use. |
+| Optional Nix installation | Its package store, build accounts, background service, and package dependencies. These are system-level additions even though this guide uses Nix only for user tools. |
 | Optional Home Manager configuration | Selected user tools and explicitly declared home configuration. It must not replace the system's networking, login, or update management. |
 
 Keep system-service executables on APT-managed paths such as `/usr/bin`. Nix packages may bring their own library versions, but do not replace `/usr/lib` or make APT aware of those packages.
 
 ## Scope and limits
 
-The first target is a **headless Pi** (normally used without a display or keyboard) on a trusted home network, with an ordinary account that can use `sudo` for administration. It is not a public server, router, high-assurance workstation, or anonymity system.
+The first target is a headless Pi on a trusted home network. Headless means normally used without a display or keyboard. Use an ordinary account with `sudo` access for administration. This guide does not cover a public server, router, high-assurance workstation, or anonymity system.
 
 Fewer running services can mean fewer reachable entry points. Removing an unused package can reduce maintenance, but package count alone does not measure security or memory use. Disk space, idle memory, boot time, and workload performance are separate measurements.
 
-**Hardening** means reducing unnecessary exposure. It does not make malicious packages safe:
+Hardening means reducing unnecessary exposure. It does not make malicious packages safe:
 
 - A program running as your user can usually read your files and change your shell configuration.
 - Nix's build sandbox restricts package builds, not programs you run afterward.
@@ -65,17 +65,17 @@ This guide does not establish verified boot, full-disk encryption, physical secu
 
 ### Know what recovery means
 
-Each stage identifies the effect of its changes and gives a recovery route. **Reversible** means you can restore a setting or retained package environment, not undo every effect it had.
+Each stage explains what its changes do and how to recover. A reversible change lets you restore a setting or a saved package environment. It does not let you undo every effect the change had.
 
-- **Inspection:** reads the current state without changing configuration.
-- **Reversible setting:** restore the recorded setting or remove only this guide's new configuration file. Working console or administrator access may be required.
-- **Backup-dependent recovery:** imaging a card, replacing packages, or deleting history cannot be undone reliably with a reverse command. Preserve a recovery card and needed data first.
+- Inspection reads the current state without changing configuration.
+- To undo a setting change, restore the recorded setting or remove only this guide's new configuration file. You may need working console or administrator access.
+- Imaging a card, replacing packages, or deleting history may require a backup to recover. A reverse command cannot reliably undo these actions. Preserve a recovery card and needed data first.
 
 ## Record the first hardware walkthrough
 
 Every stage is currently **not tested**. Upstream documentation supports the individual mechanisms, not this combined setup. Each guide lists its sources and review status; links and upstream releases may change.
 
-Use this project checklist for each stage; it is a notes template, not executable code. Keep it outside the test card, and redact private addresses, keys, and credentials before sharing it.
+Use this checklist to record each stage. It is a notes template, not executable code. Keep it outside the test card, and remove private addresses, keys, and credentials before sharing it.
 
 ```text title="Walkthrough record"
 Date and guide revision:

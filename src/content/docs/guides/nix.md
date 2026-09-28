@@ -3,10 +3,10 @@ title: 4. Add declarative user packages with Nix
 description: Optionally install Nix and Home Manager alongside Raspberry Pi OS while APT continues to own the operating system.
 ---
 
-You can stop after [hardening](/guides/kicksecure/) and use APT alone. This stage is for readers who want a file that describes their user tools and can be reused or rolled back. It does not convert the Pi to NixOS.
+You can stop after [hardening](/guides/kicksecure/) and use APT alone. This stage lets you list your user tools in a configuration file, reuse that configuration, and return to earlier package environments. It does not convert the Pi to NixOS.
 
 :::caution[Optional and untested on this project]
-This path targets a compatible Pi running 64-bit Raspberry Pi OS Lite. It adds a privileged daemon, build accounts, a package store, and update work. No Pi resource budget or Home Manager activation has been tested here. Use the separate test Pi, not the documentation computer.
+This path targets a compatible Pi running 64-bit Raspberry Pi OS Lite. It adds a privileged background service, build accounts, and a package store. You must update Nix and its packages separately from APT. We have not measured resource use or tested Home Manager activation on a Pi. Use the separate test Pi, not the documentation computer.
 :::
 
 ## What changes and how to recover
@@ -44,11 +44,11 @@ df -h /
 df -i /
 ```
 
-Continue only when the architecture results are `arm64`, `64`, and `aarch64`. This is the guide's 64-bit-userspace boundary, not a claim that Nix is impossible on a 32-bit Pi. Do not work around it with incompatible APT sources or an installer selected only from the kernel architecture.
+Continue only when the architecture results are `arm64`, `64`, and `aarch64`. This guide covers only 64-bit userspace. It does not claim that Nix cannot run on a 32-bit Pi. Do not work around this requirement with incompatible APT sources or an installer selected only from the kernel architecture.
 
-The published support list includes 64-bit ARM, while the installer also offers 32-bit ARM builds. These are different promises: Nixpkgs gives `aarch64-linux` prebuilt-package coverage from Hydra, its build service, but places 32-bit ARM in tier 3 without that coverage.
+The published support list includes 64-bit ARM, while the installer also offers 32-bit ARM builds. Package availability differs between them. Nixpkgs provides prebuilt packages for `aarch64-linux` through Hydra, its build service. It places 32-bit ARM in tier 3 without that coverage.
 
-CPU support alone is not enough. Evaluating Nix configuration consumes memory. Packages, source trees, and retained **generations** (built versions of your environment) consume storage and **inodes** (filesystem entries tracked by `df -i`). A small package list does not imply a small store.
+CPU support alone is not enough. Evaluating Nix configuration consumes memory. Packages, source trees, and retained generations consume storage and inodes. A generation is a built version of your environment. Inodes are filesystem entries whose usage `df -i` reports. A small package list does not imply a small store.
 
 Begin on the proposed Pi 4 test target with free space beyond the base installation, and record the actual cost. On a 512 MB board, start with the APT-only result instead. These are project choices, not an asserted universal Nix minimum. If the Pi is already swapping heavily or nearly full, stop here. Do not disable swap to make the baseline look smaller.
 
@@ -136,7 +136,7 @@ The service can be socket-activated, so an idle service alone is not proof of fa
 
 ## 3. Enable the commands for this user
 
-Create or edit `~/.config/nix/nix.conf` as your normal user, using an installed editor (`nano` below). Back up any existing file and preserve its other settings. Merge these values if an `experimental-features` line already exists; do not replace the root-owned daemon configuration:
+Create or edit `~/.config/nix/nix.conf` as your normal user. The example uses `nano`, but you can use another installed editor. Back up any existing file and preserve its other settings. If an `experimental-features` line already exists, merge the values below into it. Do not replace the root-owned daemon configuration.
 
 ```sh title="Pi: edit the user's Nix settings"
 mkdir -p ~/.config/nix
@@ -149,7 +149,7 @@ max-jobs = 1
 cores = 1
 ```
 
-A **flake** describes a Nix project's inputs and outputs. Flakes and the newer command interface still require experimental feature flags, even with a stable Nixpkgs release. The build limits reduce requested parallelism; they do not bound evaluation memory or guarantee that builds fit.
+A flake describes a Nix project's inputs and outputs. Flakes and the newer command interface still require experimental feature flags, even with a stable Nixpkgs release. The build limits reduce how much work builds request to run in parallel. They do not limit evaluation memory or guarantee that builds fit in the Pi's available resources.
 
 **Reference:** [Nix configuration files and build limits](https://nixos.org/manual/nix/stable/command-ref/conf-file.html#configuration-file).
 
@@ -179,7 +179,7 @@ mkdir -p ~/.config/home-manager
 
 Use your editor to create these two files in a plain directory, not a Git repository. These are file contents, not shell commands. In `home.nix`, replace `YOUR_USER` with your login name and `/home/YOUR_USER` with your actual home path.
 
-**Do not add secrets:** private keys, passwords, Wi-Fi credentials, and tokens do not belong here. Nix copies inputs and generated files into a store that other local users can normally read.
+**Do not put secrets in these files.** This includes private keys, passwords, Wi-Fi credentials, and tokens. Nix copies inputs and generated files into a store that other local users can normally read.
 
 ```nix title="~/.config/home-manager/flake.nix"
 {
@@ -219,7 +219,7 @@ Use your editor to create these two files in a plain directory, not a Git reposi
 }
 ```
 
-The configuration name `pi` is only an output label, not a required login name. `home.packages` selects `jq` (a JSON processor) and `ripgrep` (the `rg` text-search command).
+The configuration name `pi` is only an output label, not a required login name. The `home.packages` list selects `jq` for processing JSON and `ripgrep` for searching text with the `rg` command.
 
 `home.stateVersion` selects compatibility defaults for stateful settings. It does not pin packages or update Home Manager. Set it for the initial configuration and do not raise it automatically during later upgrades.
 
@@ -258,16 +258,18 @@ nix build .#homeConfigurations.pi.activationPackage
 
 Building creates an environment but does not make it active.
 
-**Before activation:** this changes your user environment and may execute user-level actions. Keep the pre-Nix card image available: the first generation has no previous generation to roll back to. Run the next block only after a successful build, without sudo. If it reports a conflicting file, inspect and back up that file instead of forcing an overwrite.
+Activation changes your user environment and may run actions with your user's permissions. Keep the pre-Nix card image available. The first generation has no previous generation to roll back to.
+
+Run the next block only after a successful build, without sudo. If it reports a conflicting file, inspect and back up that file instead of forcing an overwrite.
 
 ```sh title="Pi user: activate the successful build"
 cd ~/.config/home-manager
 ./result/activate
 ```
 
-This bootstraps Home Manager from the locked input, rather than a second installer whose version can change. Activation creates links and applies declared user settings.
+This sets up Home Manager from the input recorded in `flake.lock`, rather than a second installer whose version can change. Activation creates links and applies declared user settings.
 
-The minimal example deliberately avoids taking over your shell configuration and login shell.
+This example does not manage your shell configuration or change your login shell.
 
 **Reference:** [Home Manager activation modes](https://nix-community.github.io/home-manager/internals/activation.html) and [26.05 activation/profile implementation](https://github.com/nix-community/home-manager/blob/release-26.05/modules/home-environment.nix).
 
@@ -295,7 +297,7 @@ jq --version
 rg --version
 ```
 
-Confirm the selected executables are from your Nix user environment. If APT also installed one of these tools, `type -a` will show both. Removing the Home Manager package can reveal the APT version again. PATH precedence is not isolation, and APT does not track Nix packages.
+Confirm the selected executables are from your Nix user environment. If APT also installed one of these tools, `type -a` will show both. Removing the Home Manager package can make the APT version run again. The order of directories in `PATH` selects which executable runs. It does not isolate the programs, and APT does not track Nix packages.
 
 **Reference:** [Home Manager generations](https://nix-community.github.io/home-manager/usage/rollbacks.html), [standalone configuration](https://nix-community.github.io/home-manager/usage/configuration.html), and the installed manuals `man bash`, `man jq`, and `man rg` for command lookup and version checks.
 
@@ -392,7 +394,9 @@ Before opting out, back up the configuration, record the active generation's sto
 
 This removes the declared tools from the active environment, not generation records or old store objects.
 
-Do not assume `home-manager uninstall` works unchanged for this flake-only bootstrap. The 26.05 implementation's uninstall path uses a non-flake configuration lookup, which may require a Home Manager channel that this guide never created. For a configuration expanded beyond these packages, follow that version's removal guidance and migrate managed files or services deliberately. Remove only the shell initialization block you added if it is no longer needed.
+Do not assume `home-manager uninstall` works unchanged for this flake-only setup. In version 26.05, the uninstall command looks for a non-flake configuration. It may require a Home Manager channel that this guide never created.
+
+If you have expanded the configuration beyond these packages, follow that version's removal guidance and plan how to migrate managed files or services. Remove only the shell initialization block you added if it is no longer needed.
 
 ### Remove Nix itself
 

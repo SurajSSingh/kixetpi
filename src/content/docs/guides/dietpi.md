@@ -53,7 +53,7 @@ sudo ss -lntup
 apt-mark showmanual
 ```
 
-Use `available` memory rather than treating all filesystem cache as wasted RAM. Repeat measurements after a reboot, after the same idle interval, and during the same workload. A long boot-time service is not necessarily a large idle-memory consumer.
+Use the `available` memory value rather than treating all filesystem cache as wasted RAM. Repeat measurements after a reboot, after the same idle interval, and during the same workload. A service that takes a long time to start does not necessarily use much memory while idle.
 
 **Reference:** the Pi's installed manuals `man free`, `man swapon`, `man df`, `man systemd-analyze`, `man systemctl`, `man ss`, `man journalctl`, and `man apt-mark`; also available in the [Debian manual index](https://manpages.debian.org/trixie/index.html).
 
@@ -82,7 +82,7 @@ systemctl cat bluetooth.service
 systemctl list-dependencies --reverse bluetooth.service
 ```
 
-Record the printed enablement and activity states, not just exit codes: `is-enabled` can return success for `static` or `indirect` as well as `enabled`. `is-active` returns nonzero for inactive units.
+Record the printed enablement and activity states, not just exit codes. The `is-enabled` command can return success for `static` or `indirect` as well as `enabled`. The `is-active` command returns nonzero for inactive units.
 
 Inspect associated sockets and timers. Reverse dependencies list only units currently loaded, not every application that might need Bluetooth.
 
@@ -102,7 +102,7 @@ sudo systemctl start bluetooth.service
 
 ### Make the service change persistent
 
-Only after a successful trial, and only if its recorded state was `enabled`, disable its automatic start. Review the unit's `Also=` setting first: `disable` can also change those units' enablement, so record their states for recovery.
+Disable automatic startup only after a successful trial and only if the recorded state was `enabled`. Review the unit's `Also=` setting first. The `disable` command can also change whether the units listed there start automatically. Record their states for recovery too.
 
 Disable the reviewed service:
 
@@ -116,7 +116,7 @@ Only if disabling succeeded, save other work and reboot with the known-good card
 sudo reboot
 ```
 
-Reconnect and inspect its state and the workload again. Disabling automatic startup does not block every way a service can start. Dependencies or activation may still start it; do not add a blanket **mask** (which blocks starting the unit) to force the result.
+Reconnect and inspect its state and the workload again. Disabling automatic startup does not block every way a service can start. Dependencies or activation may still start it. Do not mask the unit to force the result. A mask blocks the unit from starting at all.
 
 To restore Bluetooth if it was originally enabled and running, use the command below. Also restore any other recorded enablement changed by `Also=`:
 
@@ -141,7 +141,7 @@ sudo apt-get -s autoremove
 
 **Reference:** [APT installed list](https://manpages.debian.org/trixie/apt/apt.8.en.html) and [apt-get simulation and autoremove](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
 
-The `-s` option simulates the proposal without removing anything. Stopping a service and removing its package are separate decisions: removing an inactive package may save disk space without changing RAM use.
+The `-s` option simulates the proposal without removing anything. Stopping a service and removing its package are separate decisions. Removing an inactive package may save disk space without changing RAM use.
 
 For one known, unused package, replace `PACKAGE_NAME` in the following commands with its actual APT name:
 
@@ -154,7 +154,7 @@ sudo apt-get -s remove PACKAGE_NAME
 
 **Reference:** [apt-cache dependency, reverse-dependency and policy queries](https://manpages.debian.org/trixie/apt/apt-cache.8.en.html) and [apt-get simulation](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
 
-Read the entire removal list. Stop if it includes boot, networking, SSH, security-update, hardware-support, or Raspberry Pi OS **metapackages** (packages that keep a related set of packages installed). Stop if you do not understand a dependency.
+Read the entire removal list. Stop if it includes boot, networking, SSH, security-update, hardware-support, or Raspberry Pi OS metapackages. A metapackage keeps a related set of packages installed. Stop if you do not understand a dependency.
 
 Only after reviewing the simulation, remove the package. Keep the known-good card ready if boot or networking fails. Do not add `-y`, `purge`, or an unreviewed `autoremove`; compare the actual APT prompt against the simulation before accepting it:
 
@@ -176,7 +176,7 @@ APT may install a newer version. Restore configuration and data from the backup 
 
 ## 4. Bound logs without discarding them at reboot
 
-[DietPi RAMlog](https://dietpi.com/docs/software/log_system/#dietpi-ramlog) reduces writes: its default mode does not save log files to disk, while its hourly-save mode risks losing up to an hour on power failure. Do not put `/var/log` on a RAM disk, routinely truncate logs, or disable the journal for this security-focused guide.
+[DietPi RAMlog](https://dietpi.com/docs/software/log_system/#dietpi-ramlog) reduces disk writes. Its default mode does not save log files to disk. Its hourly-save mode risks losing up to an hour of logs on power failure. Do not put `/var/log` on a RAM disk, routinely truncate logs, or disable the journal in this guide.
 
 First inspect the current journal and any existing configuration:
 
@@ -188,9 +188,11 @@ sudo journalctl --list-boots
 
 **Reference:** [systemd-analyze cat-config](https://manpages.debian.org/trixie/systemd/systemd-analyze.1.en.html) and [journalctl usage and boot list](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html).
 
-**Before changing the budget:** this project's 64 MiB/16 MiB example is not a DietPi default or a tested size for every card. A busy service may exhaust it before enough history accumulates. Export needed logs outside the Pi first: enforcing a smaller limit can permanently delete archived history.
+This example allows 64 MiB for persistent logs and 16 MiB for temporary logs. These are project choices, not DietPi defaults or tested limits for every card. A busy service may fill the available space before enough history accumulates.
 
-Create a new **drop-in**, a small configuration file read alongside the main file. If its filename already exists, stop and review it rather than overwriting it.
+**Export needed logs outside the Pi before changing the limits.** Enforcing a smaller limit can permanently delete archived history.
+
+Create a new drop-in, a small configuration file read alongside the main file. If its filename already exists, stop and review it rather than overwriting it.
 
 ```sh title="Pi: edit only this guide's journal drop-in"
 sudo mkdir -p /etc/systemd/journald.conf.d
@@ -204,7 +206,7 @@ SystemMaxUse=64M
 RuntimeMaxUse=16M
 ```
 
-The journal is systemd's central log store. `Storage=persistent` prefers disk storage, with temporary memory-backed storage when disk is unavailable. The limits apply to persistent and temporary journal files respectively; active files can keep usage above them. Other application logs are not capped.
+The journal is systemd's central log store. `Storage=persistent` prefers disk storage and uses memory temporarily when disk storage is unavailable. `SystemMaxUse` limits persistent journal files, and `RuntimeMaxUse` limits temporary journal files. Active files can keep usage above these limits. The settings do not limit other application logs.
 
 **Reference:** [journald.conf drop-ins, precedence, storage and size limits](https://manpages.debian.org/trixie/systemd/journald.conf.5.en.html) and [sudoedit](https://manpages.debian.org/trixie/sudo/sudo.8.en.html); see the Pi's installed `man mkdir` for directory creation.
 
@@ -218,7 +220,7 @@ sudo journalctl --disk-usage
 sudo journalctl -u ssh --since today --no-pager
 ```
 
-`--flush` transfers runtime logs to persistent storage if they have not already been flushed this boot; it is otherwise a no-op.
+The `--flush` option transfers runtime logs to persistent storage. If they have already been flushed during this boot, it does nothing.
 
 **Reference:** [journald restart semantics](https://manpages.debian.org/trixie/systemd/systemd-journald.service.8.en.html), [journalctl --flush and filters](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html), and [systemd-analyze cat-config](https://manpages.debian.org/trixie/systemd/systemd-analyze.1.en.html).
 

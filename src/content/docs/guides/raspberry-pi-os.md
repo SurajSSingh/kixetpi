@@ -6,7 +6,7 @@ description: Choose the base image, establish recoverable access, update it, and
 Start with the official Raspberry Pi OS Lite image. Lite has no desktop environment, so there is no desktop stack to remove before you begin. Keep its kernel, firmware, hardware integration, and package repositories throughout the guide.
 
 :::caution[Untested walkthrough]
-This is a proposed procedure for a separate test Pi. No hardware has completed it yet. Commands below run on the Pi unless their title explicitly names the administration computer. Do not apply them to the computer hosting this documentation site.
+This is a proposed procedure for a separate test Pi. We have not tested the full procedure on hardware yet. Commands below run on the Pi unless their title explicitly names the administration computer. Do not apply them to the computer hosting this documentation site.
 :::
 
 ## What changes and how to recover
@@ -58,7 +58,7 @@ Verify each card's SSH host fingerprint when switching; do not run two devices w
 
 ### If you need an exact snapshot
 
-Raspberry Pi Imager writes and verifies images; that is not a card-backup procedure. Use a whole-device backup and restore tool documented for your administration computer. Capture the card while the Pi is shut down, then test restoration onto a spare. Backup capture has not been tested by this project.
+Raspberry Pi Imager writes and verifies images. It does not back up a card. Use a whole-device backup and restore tool documented for your administration computer. Back up the card while the Pi is shut down, then test restoration onto a spare. We have not tested this backup procedure yet.
 
 ## 3. Flash Lite with Raspberry Pi Imager
 
@@ -66,9 +66,9 @@ Perform this step on the administration computer, following [Raspberry Pi's inst
 
 ### Prepare an SSH key first
 
-Skip key creation if you already have a suitable key. Otherwise use a macOS or Linux terminal with OpenSSH for this example; Windows users should follow the [Windows OpenSSH user-key generation instructions](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement#user-key-generation), then return to Imager below. Do not configure a Windows SSH server for this guide.
+Skip key creation if you already have a suitable key. This example uses a macOS or Linux terminal with OpenSSH. On Windows, follow the [Windows OpenSSH user-key generation instructions](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement#user-key-generation), then return to Imager below. Do not configure a Windows SSH server for this guide.
 
-**Before running:** choose a passphrase you can retain securely. If either `~/.ssh/kixetpi_ed25519` or its `.pub` file exists, use a different filename or the existing key. Do not approve an overwrite: it can permanently remove access to systems using that key.
+Before running the command, choose a passphrase you can store securely. If either `~/.ssh/kixetpi_ed25519` or its `.pub` file exists, use a different filename or the existing key. **Do not overwrite an existing key.** You could permanently lose access to systems that use it.
 
 ```sh title="Administration computer (macOS/Linux): create a key if needed"
 mkdir -p ~/.ssh
@@ -76,13 +76,13 @@ chmod 700 ~/.ssh
 ssh-keygen -t ed25519 -f ~/.ssh/kixetpi_ed25519
 ```
 
-SSH (Secure Shell) provides a remote terminal. The `.pub` file is the public key for Imager. The file without `.pub` is private and stays on the administration computer. A lost private key or passphrase needs a new key and a working access route, such as the console, to authorize it on the Pi.
+SSH stands for Secure Shell and provides a remote terminal. The `.pub` file is the public key for Imager. The file without `.pub` is private and stays on the administration computer. If you lose the private key or passphrase, create a new key. You will need another way to access the Pi, such as the console, to authorize that key.
 
 **Reference:** [Raspberry Pi SSH keys](https://www.raspberrypi.com/documentation/computers/remote-access.html#configure-ssh-without-a-password) and [OpenSSH key generation and fingerprints](https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html).
 
 ### Select and write the image
 
-**Irreversible without a backup:** writing the image erases the selected storage. Keep Imager's **Exclude system drives** option enabled and check the device and capacity before confirming.
+**Writing the image erases the selected storage.** You cannot recover its old contents without a backup. Keep Imager's **Exclude system drives** option enabled and check the device and capacity before confirming.
 
 1. Select the actual Pi model, then the compatible Raspberry Pi OS Lite edition. Do not select the desktop, DietPi, or Kicksecure image.
 2. Select the intended removable storage. Imaging erases it. Confirm the device and capacity before writing.
@@ -108,7 +108,7 @@ sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 
 A host-key fingerprint identifies the SSH server, not your login key. This command only reads the server's public key.
 
-Replace `YOUR_USER` and `YOUR_PI` with your account and the Pi's hostname or IP address. If you used an existing key, substitute its actual path. Compare the displayed fingerprint with the console result **before accepting**; if SSH displays a different key type, inspect that host public key at the console instead.
+Replace `YOUR_USER` and `YOUR_PI` with your account and the Pi's hostname or IP address. If you used an existing key, substitute its actual path. Compare the displayed fingerprint with the console result **before accepting it**. If SSH displays a different key type, inspect that host public key at the console instead.
 
 Do not bypass a changed-host-key warning. Re-imaging changes host keys, but so can connecting to the wrong device or interception. Verify the new fingerprint before removing an old known-hosts entry.
 
@@ -135,7 +135,7 @@ sudo -v
 
 Correct a wrong clock, missing network route, or failed sudo access before continuing. Keep time synchronization enabled because package verification, TLS, and useful logs depend on a sensible clock. If SSH fails, use the console to check the username, address, and `systemctl status ssh`; do not weaken authentication to guess at a fix.
 
-**Reference:** the installed manuals `man whoami`, `man hostnamectl`, `man ip`, `man timedatectl`, and `man sudo` document these checks (`sudo -v` validates administrator access).
+**Reference:** the installed manuals `man whoami`, `man hostnamectl`, `man ip`, `man timedatectl`, and `man sudo` document these checks. The `sudo -v` command validates administrator access.
 
 ## 5. Confirm the release and update normally
 
@@ -151,7 +151,9 @@ getconf LONG_BIT
 apt-cache policy
 ```
 
-For the proposed 64-bit path, expect `arm64` from `dpkg`, `64` from `getconf`, and `aarch64` from `uname -m`. **Userspace** means programs and libraries outside the kernel; its architecture can differ from the kernel's. A 32-bit installation commonly reports `armhf` from `dpkg`.
+For the proposed 64-bit path, expect `arm64` from `dpkg`, `64` from `getconf`, and `aarch64` from `uname -m`.
+
+Userspace means programs and libraries outside the kernel. Its architecture can differ from the kernel's. A 32-bit installation commonly reports `armhf` from `dpkg`.
 
 If the release is not Trixie, stop and reconcile version-specific instructions before making changes.
 
@@ -180,7 +182,9 @@ The `-s` option simulates the upgrade without changing packages. APT calls this 
 
 ### Apply and reboot
 
-**Before applying:** stop if the plan unexpectedly removes boot, networking, or remote-access components. Check that available disk space meets APT's estimate. Updates have no general undo command: preserve needed data and a recovery card or backup first; on a fresh test card, recovery may mean re-imaging and repeating setup.
+Stop if the plan unexpectedly removes boot, networking, or remote-access components. Check that available disk space meets APT's estimate.
+
+Updates have no general undo command. Preserve needed data and a recovery card or backup before applying them. On a fresh test card, recovery may mean re-imaging and repeating setup.
 
 ```sh title="Pi: apply the reviewed update"
 sudo apt full-upgrade
@@ -227,7 +231,7 @@ apt-mark showmanual
 dpkg-query -W -f='${binary:Package}\t${Version}\n'
 ```
 
-Some warnings can be expected for unused hardware. Record explanations instead of requiring an empty journal. In the port list, identify every listening service and whether it binds to **loopback** (this Pi only) or a network interface.
+Some warnings are normal for unused hardware. Record explanations instead of requiring an empty journal. In the port list, identify every listening service and whether it binds to loopback or a network interface. Loopback allows connections only from the Pi itself.
 
 **Reference:** the installed manuals `man systemctl`, `man ss`, `man journalctl`, `man apt-mark`, and [`dpkg-query` output formats](https://manpages.debian.org/trixie/dpkg/dpkg-query.1.en.html). These are inspection commands, not cleanup commands.
 
