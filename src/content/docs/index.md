@@ -3,7 +3,9 @@ title: A leaner, hardened Raspberry Pi
 description: Build on Raspberry Pi OS Lite with selected DietPi and Kicksecure practices, then optionally manage user packages with Nix.
 ---
 
-KixetPi is a guide to adapting Raspberry Pi OS Lite, not a new operating system image. Keep the Raspberry Pi kernel, hardware support, and APT repositories. Remove what your workload does not need, add selected security controls, and optionally describe your user packages with Nix.
+KixetPi is a guide to adapting Raspberry Pi OS Lite, not a new operating system image. Keep the Raspberry Pi kernel, hardware support, and package sources used by APT, Debian's package manager.
+
+Remove what your workload does not need, add selected security controls, and optionally describe your user packages with Nix.
 
 :::caution[Research draft, not a tested system]
 These instructions combine upstream documentation with proposed integration choices. No Raspberry Pi model has passed this guide yet. There are no measured memory savings or verified security claims. Use a spare card and a separate test Pi before relying on this setup.
@@ -24,7 +26,7 @@ Complete each stage's checks before continuing. Stopping after stage 3 is a comp
 
 Raspberry Pi OS, DietPi, and Kicksecure use Debian foundations, but that does not make their repositories or configuration packages interchangeable. They make different choices about kernels, supported machines, services, package dependencies, and release lifecycles.
 
-This guide borrows the layered approach of distromorphing without performing a distribution conversion. It transfers individual practices and checks them against the Raspberry Pi OS base. It does not install all three distributions on top of one another.
+**Distromorphing** means converting an installed Linux distribution into another one. This guide does not do that: it borrows individual practices, not repositories or whole configurations.
 
 Nix is a package manager that can run alongside an existing Linux distribution. NixOS is a separate Linux distribution built around Nix. This guide uses Nix and optional Home Manager configuration, not NixOS modules or `nixos-rebuild`.
 
@@ -39,28 +41,41 @@ Keep system-service executables on APT-managed paths such as `/usr/bin`. Nix pac
 
 ## Scope and limits
 
-The first target is a headless Pi on a trusted home network, with an ordinary account that can use `sudo` for administration. It is not a public server, router, high-assurance workstation, or anonymity system. Those uses need separate rules and testing.
+The first target is a **headless Pi** (normally used without a display or keyboard) on a trusted home network, with an ordinary account that can use `sudo` for administration. It is not a public server, router, high-assurance workstation, or anonymity system.
 
 Fewer running services can mean fewer reachable entry points. Removing an unused package can reduce maintenance, but package count alone does not measure security or memory use. Disk space, idle memory, boot time, and workload performance are separate measurements.
 
-Hardening here aims to reduce unnecessary exposure and make mistakes easier to detect. It does not make malicious packages safe. A program running as your user can usually read your files, steal credentials, and change your shell configuration. Nix's build sandbox is not a runtime sandbox. Software run with `sudo` can change the whole system.
+**Hardening** means reducing unnecessary exposure. It does not make malicious packages safe:
+
+- A program running as your user can usually read your files and change your shell configuration.
+- Nix's build sandbox restricts package builds, not programs you run afterward.
+- Software run with `sudo` can change the whole system.
 
 This guide does not establish verified boot, full-disk encryption, physical security, or protection after root compromise. It does not reproduce Kicksecure's complete security design. Install software only from sources you trust, and do not use this test Pi for sensitive credentials.
 
 ## Use these instructions safely
 
 - Commands on the four guide pages are for the separate Raspberry Pi unless a block explicitly says it runs on your administration computer.
-- Read the explanation and recovery instructions before executing a block. Do not paste a whole page into a terminal.
+- Read the prerequisites and warnings before each block. Explanations and references follow it; complete the result checks before the next step. Do not paste a whole page into a terminal.
 - Replace example usernames, addresses, and file paths with your own values. Stop if the documented preconditions do not match your machine.
+- Stop on unexpected errors; do not continue to later commands in the block. Expected failures, such as a refused password-only login, are labeled.
 - Make one change at a time. Keep an existing SSH session open while testing another, and arrange local console access before access-control changes.
 - Keep a known-good full-card backup or spare card outside the Pi. Package lists and copies of `/etc` are useful records, not a bootable recovery image.
 - Preserve updates, working name resolution, time synchronization, and useful logs. A smaller system that cannot update or diagnose a failure is not the goal.
 
+### Know what recovery means
+
+Each stage identifies the effect of its changes and gives a recovery route. **Reversible** means you can restore a setting or retained package environment, not undo every effect it had.
+
+- **Inspection:** reads the current state without changing configuration.
+- **Reversible setting:** restore the recorded setting or remove only this guide's new configuration file. Working console or administrator access may be required.
+- **Backup-dependent recovery:** imaging a card, replacing packages, or deleting history cannot be undone reliably with a reverse command. Preserve a recovery card and needed data first.
+
 ## Record the first hardware walkthrough
 
-Every stage is currently **not tested**. Upstream documentation supports the individual mechanisms, not this combined setup. Research links were reviewed on 26 September 2026 and may change.
+Every stage is currently **not tested**. Upstream documentation supports the individual mechanisms, not this combined setup. Each guide lists its sources and review status; links and upstream releases may change.
 
-Use this record for each stage. Keep it outside the test card, and redact private addresses, keys, and credentials before sharing it.
+Use this project checklist for each stage; it is a notes template, not executable code. Keep it outside the test card, and redact private addresses, keys, and credentials before sharing it.
 
 ```text title="Walkthrough record"
 Date and guide revision:

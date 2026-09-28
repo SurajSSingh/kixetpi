@@ -9,6 +9,15 @@ Start with the official Raspberry Pi OS Lite image. Lite has no desktop environm
 This is a proposed procedure for a separate test Pi. No hardware has completed it yet. Commands below run on the Pi unless their title explicitly names the administration computer. Do not apply them to the computer hosting this documentation site.
 :::
 
+## What changes and how to recover
+
+| Action | Recovery limit |
+| --- | --- |
+| Flash an image | Erases the selected storage. Only a separate backup preserves its old contents. |
+| Create an SSH key | Adds local key files. An overwritten private key or forgotten passphrase cannot be recovered from the public key. |
+| Update packages | Changes system files and may run migration scripts. There is no general one-command undo; use a pre-update card backup or rebuild the test card. |
+| Inspect the baseline | Reads system state; no configuration rollback is needed. |
+
 ## 1. Choose the hardware and image
 
 The initial target is Raspberry Pi OS Lite based on Debian 13, Trixie. The official documentation identifies Bookworm as the previous release. Check what Raspberry Pi Imager actually offers when you run the guide; do not replace release names in APT files to make an older installation match.
@@ -38,13 +47,42 @@ Have these ready:
 
 Do not forward SSH from the internet or expose a fresh test installation publicly. An ordinary home-network trial is the scope of this guide.
 
-For a concrete recovery route in this first walkthrough, prepare two cards. Complete this base guide on the first, confirm it boots and accepts SSH, then shut down, remove it, and label it as the known-good baseline. Keep that card unchanged. Repeat the base setup on the second card and use that one for the later experiments. If the test system stops booting, power off and boot the preserved card. Verify each card's SSH host fingerprint when switching; do not run two devices with the same hostname at once.
+### Keep a working card aside
 
-That spare restores a working base, not later application data or configuration. Keep walkthrough notes and important files outside the test card so you can rebuild deliberately. Raspberry Pi Imager's cited procedure writes and verifies images; it is not a card-backup procedure. If you need an exact snapshot of a later stage, choose a whole-device backup and restore tool documented for your administration computer, image the card while the Pi is shut down, and test restoration onto a spare before relying on it. This guide does not prescribe a universal disk-copy command or claim that backup capture has been tested.
+1. Complete this base guide on the first card and confirm it boots and accepts SSH.
+2. Shut down, remove it, and label it as the known-good baseline. Keep it unchanged.
+3. Repeat the base setup on the second card and use that one for later experiments.
+4. If the test system stops booting, power off and boot the preserved card.
+
+Verify each card's SSH host fingerprint when switching; do not run two devices with the same hostname at once. That spare restores a working base, not later application data or configuration. Keep important files and notes outside the test card.
+
+### If you need an exact snapshot
+
+Raspberry Pi Imager writes and verifies images; that is not a card-backup procedure. Use a whole-device backup and restore tool documented for your administration computer. Capture the card while the Pi is shut down, then test restoration onto a spare. Backup capture has not been tested by this project.
 
 ## 3. Flash Lite with Raspberry Pi Imager
 
 Perform this step on the administration computer, following [Raspberry Pi's installation documentation](https://www.raspberrypi.com/documentation/computers/getting-started.html#install).
+
+### Prepare an SSH key first
+
+Skip key creation if you already have a suitable key. Otherwise use a macOS or Linux terminal with OpenSSH for this example; Windows users should follow the [Windows OpenSSH user-key generation instructions](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement#user-key-generation), then return to Imager below. Do not configure a Windows SSH server for this guide.
+
+**Before running:** choose a passphrase you can retain securely. If either `~/.ssh/kixetpi_ed25519` or its `.pub` file exists, use a different filename or the existing key. Do not approve an overwrite: it can permanently remove access to systems using that key.
+
+```sh title="Administration computer (macOS/Linux): create a key if needed"
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+ssh-keygen -t ed25519 -f ~/.ssh/kixetpi_ed25519
+```
+
+SSH (Secure Shell) provides a remote terminal. The `.pub` file is the public key for Imager. The file without `.pub` is private and stays on the administration computer. A lost private key or passphrase needs a new key and a working access route, such as the console, to authorize it on the Pi.
+
+**Reference:** [Raspberry Pi SSH keys](https://www.raspberrypi.com/documentation/computers/remote-access.html#configure-ssh-without-a-password) and [OpenSSH key generation and fingerprints](https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html).
+
+### Select and write the image
+
+**Irreversible without a backup:** writing the image erases the selected storage. Keep Imager's **Exclude system drives** option enabled and check the device and capacity before confirming.
 
 1. Select the actual Pi model, then the compatible Raspberry Pi OS Lite edition. Do not select the desktop, DietPi, or Kicksecure image.
 2. Select the intended removable storage. Imaging erases it. Confirm the device and capacity before writing.
@@ -54,35 +92,35 @@ Perform this step on the administration computer, following [Raspberry Pi's inst
 6. Configure Wi-Fi if needed, or use Ethernet for the first boot. Check your model's supported Wi-Fi bands.
 7. Write the image, allow verification to complete, and eject the card safely.
 
-If you do not yet have an SSH key, create one on the administration computer:
-
-```sh title="Administration computer: create a separate SSH key if needed"
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-ssh-keygen -t ed25519 -f ~/.ssh/kixetpi_ed25519
-```
-
-Use a passphrase and do not overwrite an existing key. Give Imager the contents of `~/.ssh/kixetpi_ed25519.pub`, not the private file without `.pub`. A local password remains useful even when SSH accepts only keys.
-
 Use Imager's current customization interface rather than older tutorials that copy `wpa_supplicant.conf` into the boot partition. Image releases differ in how they configure networking and first-boot users.
 
 ## 4. Boot and prove access
 
 Insert the card and power on the Pi. Allow first-boot setup to finish. Find its address in your router's client list or at the local console. A hostname such as `kixetpi.local` may work when your network supports multicast DNS, but it is not guaranteed.
 
-Replace `YOUR_USER` and `YOUR_PI` with the account you created and the Pi's hostname or IP address:
+### Verify the Pi's identity
 
-```sh title="Administration computer: connect with your key"
-ssh -S none -i ~/.ssh/kixetpi_ed25519 YOUR_USER@YOUR_PI
-```
-
-If you used an existing key, give its actual path instead. On the first connection, compare the server's displayed host-key fingerprint with the Pi's local console before accepting it. For its Ed25519 host key, the console command is:
+At the Pi's local console, record its Ed25519 host-key fingerprint before connecting remotely:
 
 ```sh title="Pi local console: show the server host-key fingerprint"
 sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-Do not bypass a changed-host-key warning automatically. A deliberate re-image changes host keys, but a different device or interception can also cause that warning. Verify the new fingerprint before removing an old known-hosts entry.
+A host-key fingerprint identifies the SSH server, not your login key. This command only reads the server's public key.
+
+Replace `YOUR_USER` and `YOUR_PI` with your account and the Pi's hostname or IP address. If you used an existing key, substitute its actual path. Compare the displayed fingerprint with the console result **before accepting**; if SSH displays a different key type, inspect that host public key at the console instead.
+
+Do not bypass a changed-host-key warning. Re-imaging changes host keys, but so can connecting to the wrong device or interception. Verify the new fingerprint before removing an old known-hosts entry.
+
+```sh title="Administration computer: connect with your key"
+ssh -S none -i ~/.ssh/kixetpi_ed25519 YOUR_USER@YOUR_PI
+```
+
+`-i` selects the login key and `-S none` prevents reuse of an existing shared connection.
+
+**Reference:** [OpenSSH connection and host-key checks](https://manpages.debian.org/trixie/openssh-client/ssh.1.en.html) and [fingerprint display with `ssh-keygen -l`](https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html).
+
+### Check the first login
 
 In the SSH session, check the account, network, clock, and administrator access:
 
@@ -96,6 +134,8 @@ sudo -v
 ```
 
 Correct a wrong clock, missing network route, or failed sudo access before continuing. Keep time synchronization enabled because package verification, TLS, and useful logs depend on a sensible clock. If SSH fails, use the console to check the username, address, and `systemctl status ssh`; do not weaken authentication to guess at a fix.
+
+**Reference:** the installed manuals `man whoami`, `man hostnamectl`, `man ip`, `man timedatectl`, and `man sudo` document these checks (`sudo -v` validates administrator access).
 
 ## 5. Confirm the release and update normally
 
@@ -111,30 +151,42 @@ getconf LONG_BIT
 apt-cache policy
 ```
 
-For the proposed 64-bit path, expect `arm64` from `dpkg`, `64` from `getconf`, and `aarch64` from `uname -m`. A 32-bit installation commonly reports `armhf` from `dpkg`. Record its actual kernel result rather than assuming it is also 32-bit. If the release is not Trixie, stop and reconcile version-specific instructions before making changes.
+For the proposed 64-bit path, expect `arm64` from `dpkg`, `64` from `getconf`, and `aarch64` from `uname -m`. **Userspace** means programs and libraries outside the kernel; its architecture can differ from the kernel's. A 32-bit installation commonly reports `armhf` from `dpkg`.
+
+If the release is not Trixie, stop and reconcile version-specific instructions before making changes.
+
+**Reference:** [Raspberry Pi OS editions and architecture](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/os/rpi-os-introduction.adoc), [model identification](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#model-and-revision-codes), and the installed manuals `man os-release`, `man cat`, `man uname`, `man dpkg`, `man getconf`, and `man apt-cache`.
 
 Review the image's files in `/etc/apt/sources.list.d/` and any `/etc/apt/sources.list`. Current Raspberry Pi documentation describes `debian.sources` for 64-bit or `raspbian.sources` for 32-bit, plus `raspi.sources`. Older images may use `.list` files. Record what is present; do not rename files or rewrite origins to match an example.
 
-Follow Raspberry Pi's normal update procedure:
+### Refresh and review
+
+Refresh the package list before reviewing the upgrade:
 
 ```sh title="Pi: refresh package metadata"
 sudo apt update
 ```
 
-Resolve any signature, repository, clock, or network errors before continuing. Do not add `trusted=yes`, disable signature checks, or change distributions to work around an error.
+This refreshes package metadata; it does not upgrade installed packages. Resolve any signature, repository, clock, or network errors before continuing. Do not disable signature checks or change distributions to work around an error.
 
 ```sh title="Pi: review the upgrade before applying it"
 apt list --upgradable
-sudo apt-get -s full-upgrade
+sudo apt-get -s dist-upgrade
 ```
 
-Review removals as well as new packages. Stop if an unexpected plan removes boot, networking, or remote-access components. Then apply the normal upgrade interactively:
+The `-s` option simulates the upgrade without changing packages. APT calls this operation `dist-upgrade` in `apt-get` and `full-upgrade` in `apt`; neither command changes the configured OS release. Review removals as well as new packages.
+
+**Reference:** [Raspberry Pi updates](https://www.raspberrypi.com/documentation/computers/os.html#update-software), [APT listing](https://manpages.debian.org/trixie/apt/apt.8.en.html), and [APT simulation](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
+
+### Apply and reboot
+
+**Before applying:** stop if the plan unexpectedly removes boot, networking, or remote-access components. Check that available disk space meets APT's estimate. Updates have no general undo command: preserve needed data and a recovery card or backup first; on a fresh test card, recovery may mean re-imaging and repeating setup.
 
 ```sh title="Pi: apply the reviewed update"
 sudo apt full-upgrade
 ```
 
-Wait for successful completion. Reboot separately, not while APT is still running:
+Wait for successful completion. Save other work before rebooting, which disconnects SSH. Do not reboot while APT is still running:
 
 ```sh title="Pi: reboot after a successful update"
 sudo reboot
@@ -142,16 +194,29 @@ sudo reboot
 
 Reconnect, confirm `uname -r`, and check `systemctl --failed`. Raspberry Pi's APT updates include its kernel and stable firmware. Do not use `rpi-update` as a routine updater. For a major OS release change, prefer a fresh image and restore your data rather than editing release names in repository files.
 
+**Reference:** [Raspberry Pi update procedure](https://www.raspberrypi.com/documentation/computers/os.html#update-software) and [command-line shutdown and reboot](https://www.raspberrypi.com/documentation/computers/getting-started.html#cmd-shutdown).
+
 ## 6. Record an unchanged baseline
 
 Before any DietPi-inspired changes, collect the following output and keep a copy with your [walkthrough record](/#record-the-first-hardware-walkthrough) outside the card:
 
-```sh title="Pi: capture the baseline"
+### Resources and boot
+
+```sh title="Pi: capture resource use and boot status"
 free -h
 swapon --show
 df -h / /boot/firmware
 systemd-analyze
 systemctl --failed
+```
+
+The current image normally mounts boot files at `/boot/firmware`. If that path is absent, record the actual mount layout and investigate the image version rather than creating the directory. A missing swap device is an observation, not a command to add one immediately.
+
+**Reference:** the installed manuals `man free`, `man swapon`, `man df`, `man systemd-analyze`, and `man systemctl`.
+
+### Services, logs, and packages
+
+```sh title="Pi: capture the service and package inventory"
 systemctl list-units --type=service --state=running
 systemctl list-unit-files --type=service --state=enabled
 systemctl list-timers --all
@@ -162,9 +227,9 @@ apt-mark showmanual
 dpkg-query -W -f='${binary:Package}\t${Version}\n'
 ```
 
-The current image normally mounts boot files at `/boot/firmware`. If that path is absent, record the actual mount layout and investigate the image version rather than creating the directory. A missing swap device is an observation, not a command to add one immediately.
+Some warnings can be expected for unused hardware. Record explanations instead of requiring an empty journal. In the port list, identify every listening service and whether it binds to **loopback** (this Pi only) or a network interface.
 
-Some warnings can be expected for unused hardware. Read them and record explanations instead of requiring an empty journal. In the port list, identify every listening service and whether it binds only to loopback or to a network interface.
+**Reference:** the installed manuals `man systemctl`, `man ss`, `man journalctl`, `man apt-mark`, and [`dpkg-query` output formats](https://manpages.debian.org/trixie/dpkg/dpkg-query.1.en.html). These are inspection commands, not cleanup commands.
 
 Run the workload you intend to keep, and note its memory use and responsiveness. If you do not have an application yet, record that this is only an idle baseline. Do not compare an idle measurement with a later loaded system.
 
@@ -192,10 +257,11 @@ Preserve the verified baseline card or a restore-tested full-card image after th
 
 ## Sources and review status
 
-Reviewed on 26 September 2026. Upstream documents the individual operations; the combined KixetPi walkthrough remains untested.
+Content and primary installation/update sources reviewed on 28 September 2026. Upstream documents the individual operations; the combined KixetPi walkthrough remains untested. Installed manual pages describe the diagnostic commands for your actual package versions; Debian's [manual index](https://manpages.debian.org/trixie/index.html) is an online alternative.
 
 - [Official Raspberry Pi OS images](https://www.raspberrypi.com/software/operating-systems/).
 - [Raspberry Pi installation and first boot](https://www.raspberrypi.com/documentation/computers/getting-started.html).
 - [Raspberry Pi OS documentation and updates](https://www.raspberrypi.com/documentation/computers/os.html).
 - [Raspberry Pi SSH and public-key access](https://www.raspberrypi.com/documentation/computers/remote-access.html#ssh).
+- [Upstream Imager instructions](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/getting-started/install.adoc) and [SSH instructions](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/remote-access/ssh.adoc) are readable alternatives if the documentation site is unavailable.
 - [Upstream OS introduction source](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/os/rpi-os-introduction.adoc), [package source definitions](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/software-sources.adoc), and [update instructions](https://github.com/raspberrypi/documentation/blob/master/documentation/asciidoc/computers/os/updating.adoc).

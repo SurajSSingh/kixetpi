@@ -9,6 +9,15 @@ Keep Raspberry Pi OS Lite and make only the reductions your workload supports. D
 Complete the [base setup](/guides/raspberry-pi-os/) and its backup checkpoint first. All commands here run on the test Pi. No savings have been measured, and there is no target package count or RAM figure.
 :::
 
+## What changes and how to recover
+
+| Action | Recovery limit |
+| --- | --- |
+| Stop or disable an unused service | Restore its recorded running and enablement states. Keep the known-good card available if access fails. |
+| Remove a package | Reinstall if it remains available; configuration and data may need a backup. |
+| Limit the journal | Remove the new settings to restore the old policy. Discarded logs are lost unless exported beforehand. |
+| Inspect resources and swap | No configuration changes; leave stock swap intact. |
+
 ## What transfers and what does not
 
 | DietPi practice | Adaptation in this guide |
@@ -27,21 +36,26 @@ Write down what this Pi must do. Include SSH, Wi-Fi or Ethernet, name resolution
 
 On the Pi, record the output before changing anything:
 
-```sh title="Pi: inspect resource use and active services"
+```sh title="Pi: inspect resource use"
 free -h
 swapon --show
 df -h /
 systemd-analyze
+sudo journalctl --disk-usage
+```
+
+```sh title="Pi: inventory services and packages"
 systemctl list-units --type=service --state=running
 systemctl list-unit-files --type=service --state=enabled
 systemctl list-sockets --all
 systemctl list-timers --all
 sudo ss -lntup
-sudo journalctl --disk-usage
 apt-mark showmanual
 ```
 
 Use `available` memory rather than treating all filesystem cache as wasted RAM. Repeat measurements after a reboot, after the same idle interval, and during the same workload. A long boot-time service is not necessarily a large idle-memory consumer.
+
+**Reference:** the Pi's installed manuals `man free`, `man swapon`, `man df`, `man systemd-analyze`, `man systemctl`, `man ss`, `man journalctl`, and `man apt-mark`; also available in the [Debian manual index](https://manpages.debian.org/trixie/index.html).
 
 Keep these parts unless a separate, tested replacement exists:
 
@@ -58,6 +72,8 @@ Do not disable security mitigations, logging, or updates to improve an idle-memo
 
 This example applies only if `bluetooth.service` exists and the Pi does not use Bluetooth peripherals, networking, or its recovery keyboard. If it is absent or needed, skip the example. Do not replace it with an arbitrary core service.
 
+An inactive or disabled service can produce a nonzero exit status in these checks; that is expected, not a reason to repair or enable it. Record the printed states:
+
 ```sh title="Pi: inspect the example service"
 systemctl status bluetooth.service --no-pager
 systemctl is-enabled bluetooth.service
@@ -66,9 +82,11 @@ systemctl cat bluetooth.service
 systemctl list-dependencies --reverse bluetooth.service
 ```
 
-Record whether it was enabled and active. A nonzero result from `is-enabled` or `is-active` can mean disabled or inactive rather than a broken system. Inspect any associated sockets and timers in the inventory. Dependencies alone do not describe every application that might need Bluetooth.
+Record the printed enablement and activity states, not just exit codes: `is-enabled` can return success for `static` or `indirect` as well as `enabled`. `is-active` returns nonzero for inactive units.
 
-If it is running and unused, stop it for this boot:
+Inspect associated sockets and timers. Reverse dependencies list only units currently loaded, not every application that might need Bluetooth.
+
+If it is running and unused, stop it for this boot. Keep another recovery input or the known-good card available. To undo the trial, start the service again as shown below:
 
 ```sh title="Pi: temporary trial"
 sudo systemctl stop bluetooth.service
@@ -80,24 +98,39 @@ Test the workload and recovery input devices. If something breaks, restore the p
 sudo systemctl start bluetooth.service
 ```
 
-Only after a successful trial, and only if it was enabled before, disable its automatic start:
+**Reference:** [systemctl inspection, enablement states, stop and start](https://manpages.debian.org/trixie/systemd/systemctl.1.en.html).
+
+### Make the service change persistent
+
+Only after a successful trial, and only if its recorded state was `enabled`, disable its automatic start. Review the unit's `Also=` setting first: `disable` can also change those units' enablement, so record their states for recovery.
+
+Disable the reviewed service:
 
 ```sh title="Pi: keep the successful change across boots"
 sudo systemctl disable bluetooth.service
+```
+
+Only if disabling succeeded, save other work and reboot with the known-good card available. This disconnects SSH:
+
+```sh title="Pi: test the next boot"
 sudo reboot
 ```
 
-Reconnect and inspect its state and the workload again. Disabling a unit is not the same as masking it; dependencies or activation can still start it. Investigate rather than adding a blanket mask. To restore a service that was originally enabled and running:
+Reconnect and inspect its state and the workload again. Disabling automatic startup does not block every way a service can start. Dependencies or activation may still start it; do not add a blanket **mask** (which blocks starting the unit) to force the result.
+
+To restore Bluetooth if it was originally enabled and running, use the command below. Also restore any other recorded enablement changed by `Also=`:
 
 ```sh title="Pi: restore the recorded original state"
 sudo systemctl enable --now bluetooth.service
 ```
 
+**Reference:** [systemctl enable, disable, and mask](https://manpages.debian.org/trixie/systemd/systemctl.1.en.html) and [reboot](https://manpages.debian.org/trixie/systemd-sysv/reboot.8.en.html).
+
 Do not disable Avahi casually. It may provide the `.local` hostname you use for SSH and service discovery. An IP-based login and a deliberate replacement for discovery would be prerequisites to removing it.
 
 ## 3. Review package removal without a bulk purge
 
-Stopping a service and removing its package are separate decisions. Removing a package may save disk space without changing RAM use. APT can remove dependent packages too.
+APT can remove dependent packages too. Preserve the card backup and recorded installed versions before removal. Use `remove`, not `purge`, to retain package configuration files; neither operation backs up application data.
 
 Review candidates and the automatic-removal proposal without applying it:
 
@@ -105,6 +138,10 @@ Review candidates and the automatic-removal proposal without applying it:
 apt list --installed
 sudo apt-get -s autoremove
 ```
+
+**Reference:** [APT installed list](https://manpages.debian.org/trixie/apt/apt.8.en.html) and [apt-get simulation and autoremove](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
+
+The `-s` option simulates the proposal without removing anything. Stopping a service and removing its package are separate decisions: removing an inactive package may save disk space without changing RAM use.
 
 For one known, unused package, replace `PACKAGE_NAME` in the following commands with its actual APT name:
 
@@ -115,15 +152,17 @@ apt-cache rdepends --installed PACKAGE_NAME
 sudo apt-get -s remove PACKAGE_NAME
 ```
 
-Read the entire removal list. Stop if it includes a kernel, boot, networking, SSH, security-update, hardware-support, or Raspberry Pi OS metapackage. Stop if you do not understand a dependency. Record the installed versions and preserve the card backup before proceeding.
+**Reference:** [apt-cache dependency, reverse-dependency and policy queries](https://manpages.debian.org/trixie/apt/apt-cache.8.en.html) and [apt-get simulation](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
 
-Only after reviewing the simulation:
+Read the entire removal list. Stop if it includes boot, networking, SSH, security-update, hardware-support, or Raspberry Pi OS **metapackages** (packages that keep a related set of packages installed). Stop if you do not understand a dependency.
+
+Only after reviewing the simulation, remove the package. Keep the known-good card ready if boot or networking fails. Do not add `-y`, `purge`, or an unreviewed `autoremove`; compare the actual APT prompt against the simulation before accepting it:
 
 ```sh title="Pi: remove the reviewed package"
 sudo apt-get remove PACKAGE_NAME
 ```
 
-Do not add `-y`, `purge`, or an unreviewed `autoremove` command. `remove` normally retains package configuration files, but it is not a backup of application data. Package hooks can still change system state.
+Package hooks can still change system state. The simulation is a snapshot, not a guarantee if package indexes or installed packages change before removal.
 
 To undo the removal while the package remains in your configured repositories:
 
@@ -133,9 +172,11 @@ sudo apt-get install PACKAGE_NAME
 
 APT may install a newer version. Restore configuration and data from the backup as needed, then check the service's recorded enablement state. If the base no longer boots or networking fails, use the known-good card rather than attempting a broad reinstall over SSH.
 
+**Reference:** [apt-get remove, purge, and install](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
+
 ## 4. Bound logs without discarding them at reboot
 
-[DietPi RAMlog](https://dietpi.com/docs/software/log_system/#dietpi-ramlog) reduces writes with volatile logging modes. That trades away recent or all log history when power fails. Do not put `/var/log` on a RAM disk, routinely truncate logs, or disable the journal for this security-focused guide.
+[DietPi RAMlog](https://dietpi.com/docs/software/log_system/#dietpi-ramlog) reduces writes: its default mode does not save log files to disk, while its hourly-save mode risks losing up to an hour on power failure. Do not put `/var/log` on a RAM disk, routinely truncate logs, or disable the journal for this security-focused guide.
 
 First inspect the current journal and any existing configuration:
 
@@ -145,11 +186,11 @@ sudo journalctl --disk-usage
 sudo journalctl --list-boots
 ```
 
-The following is a project starting budget, not a DietPi default or a tested recommendation for every card. It limits the persistent journal to roughly 64 MiB and its temporary runtime storage to 16 MiB. Active files, free-space rules, and other log writers affect actual usage. A busy service may exhaust the budget before enough history has accumulated.
+**Reference:** [systemd-analyze cat-config](https://manpages.debian.org/trixie/systemd/systemd-analyze.1.en.html) and [journalctl usage and boot list](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html).
 
-Export logs you need to storage outside the Pi before applying a smaller limit. Applying it can rotate out archived history immediately; removing the configuration later cannot recover that history.
+**Before changing the budget:** this project's 64 MiB/16 MiB example is not a DietPi default or a tested size for every card. A busy service may exhaust it before enough history accumulates. Export needed logs outside the Pi first: enforcing a smaller limit can permanently delete archived history.
 
-Create a new, dedicated drop-in. If that file already exists, stop and review it rather than overwriting it.
+Create a new **drop-in**, a small configuration file read alongside the main file. If its filename already exists, stop and review it rather than overwriting it.
 
 ```sh title="Pi: edit only this guide's journal drop-in"
 sudo mkdir -p /etc/systemd/journald.conf.d
@@ -163,7 +204,11 @@ SystemMaxUse=64M
 RuntimeMaxUse=16M
 ```
 
-Apply the change and flush temporary logs into persistent storage:
+The journal is systemd's central log store. `Storage=persistent` prefers disk storage, with temporary memory-backed storage when disk is unavailable. The limits apply to persistent and temporary journal files respectively; active files can keep usage above them. Other application logs are not capped.
+
+**Reference:** [journald.conf drop-ins, precedence, storage and size limits](https://manpages.debian.org/trixie/systemd/journald.conf.5.en.html) and [sudoedit](https://manpages.debian.org/trixie/sudo/sudo.8.en.html); see the Pi's installed `man mkdir` for directory creation.
+
+Apply the change and inspect the result:
 
 ```sh title="Pi: apply and inspect logging"
 sudo systemctl restart systemd-journald
@@ -173,7 +218,11 @@ sudo journalctl --disk-usage
 sudo journalctl -u ssh --since today --no-pager
 ```
 
-Verify that another drop-in does not override these settings. After the next reboot, `sudo journalctl -b -1` should show the prior boot. On the first persistent boot there may be no older journal yet. Investigate a missing journal after subsequent boots before continuing.
+`--flush` transfers runtime logs to persistent storage if they have not already been flushed this boot; it is otherwise a no-op.
+
+**Reference:** [journald restart semantics](https://manpages.debian.org/trixie/systemd/systemd-journald.service.8.en.html), [journalctl --flush and filters](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html), and [systemd-analyze cat-config](https://manpages.debian.org/trixie/systemd/systemd-analyze.1.en.html).
+
+Verify that another drop-in does not override these settings. After the next reboot, `sudo journalctl -b -1` can show the prior boot only if that history survived within the budget. On the first persistent boot there may be no older journal yet. If prior-boot logs are missing after subsequent boots, investigate configuration, available storage, and whether the budget is too small before continuing.
 
 Do not remove `rsyslog` just because the journal exists. An application, log-rotation rule, or remote log collector may rely on it. These limits do not cap application log files outside the journal. Review their own rotation separately.
 
@@ -184,11 +233,13 @@ sudo rm /etc/systemd/journald.conf.d/60-kixetpi-limits.conf
 sudo systemctl restart systemd-journald
 ```
 
+**Reference:** [journald configuration precedence](https://manpages.debian.org/trixie/systemd/journald.conf.5.en.html) and [safe service restart](https://manpages.debian.org/trixie/systemd/systemd-journald.service.8.en.html); see the Pi's installed `man rm` for file removal.
+
 Restore any earlier configuration you intentionally changed. Removing the drop-in cannot recover logs already rotated out, and it does not delete existing journal files.
 
 ## 5. Keep the stock swap setup for now
 
-Inspect the actual image instead of assuming it uses a swap file, zram, or a particular swap manager:
+Inspect the actual image instead of assuming a particular swap manager. Run `zramctl` only if installed; otherwise record that and skip that line:
 
 ```sh title="Pi: observe memory pressure under the real workload"
 free -h
@@ -198,7 +249,9 @@ vmstat 1 10
 sudo journalctl -k -b --no-pager
 ```
 
-If `zramctl` is unavailable, record that and skip it. Empty output can mean no zram devices exist. In `vmstat`, ignore the first row when comparing current activity; it summarizes time since boot. Look for sustained swap traffic, poor response times, or out-of-memory messages during the workload.
+**Reference:** [free](https://manpages.debian.org/trixie/procps/free.1.en.html), [swapon](https://manpages.debian.org/trixie/util-linux/swapon.8.en.html), [zramctl](https://manpages.debian.org/trixie/util-linux/zramctl.8.en.html), [vmstat](https://manpages.debian.org/trixie/procps/vmstat.8.en.html), and [journalctl kernel filter](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html).
+
+Empty `zramctl` output can mean no zram devices exist. In `vmstat`, ignore the first row when comparing current activity; it summarizes time since boot. Look for sustained swap traffic, poor response times, or out-of-memory messages during the workload.
 
 Zram compresses data in RAM at a CPU cost. It is not free memory, and it may not help much with incompressible data. Disk-backed swap uses storage and writes but can prevent an out-of-memory failure. A small Pi may need it more, not less.
 
@@ -206,15 +259,26 @@ Do not copy DietPi's swap scripts, run `swapoff -a`, force a swappiness value, o
 
 ## Checkpoint and recovery
 
-Reboot, reconnect over SSH, and test the actual application, hardware, name resolution, and updates. Repeat the baseline measurements and check:
+Reboot, reconnect over SSH, and test the actual application, hardware, and name resolution. Repeat the baseline measurements and perform these read-only checks:
 
 ```sh title="Pi: verify the reduced system"
 systemctl --failed
 sudo ss -lntup
 sudo journalctl -b -p warning --no-pager
 sudo journalctl -b -1 --no-pager
+```
+
+**Reference:** [systemctl failed units](https://manpages.debian.org/trixie/systemd/systemctl.1.en.html) and [journalctl boot and priority filters](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html); see the Pi's installed `man ss` for socket inspection.
+
+To check repository access, refresh APT indexes separately:
+
+```sh title="Pi: refresh repository indexes"
 sudo apt update
 ```
+
+This writes package-list metadata but does not install upgrades.
+
+**Reference:** [APT update](https://manpages.debian.org/trixie/apt/apt.8.en.html).
 
 Record each intentionally disabled unit, removed package, and changed file. Keep the results even if savings are negligible. Lite may already be close to the smallest useful setup for your workload.
 
@@ -230,7 +294,7 @@ If checks pass, record the result and make a new known-good backup. Continue to 
 
 ## Sources and review status
 
-Reviewed on 26 September 2026. The procedures above are an untested adaptation, not a DietPi-supported installation method.
+Reviewed on 28 September 2026. The procedures above are an untested adaptation, not a DietPi-supported installation method.
 
 - [DietPi installation and conversion warning](https://dietpi.com/docs/hardware/#make-your-own-distribution).
 - [DietPi-Services](https://dietpi.com/docs/dietpi_tools/system_configuration/#dietpi-services).
