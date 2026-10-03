@@ -1,3 +1,9 @@
+## Assisting a Pi operator
+
+For help with the Raspberry Pi walkthrough, read [the agent assistance companion](src/content/docs/reference/agent-assistance.md) and [the project overview](src/content/docs/index.md) before proposing or executing system changes. The companion maps prerequisites, stage checkpoints, command semantics, and upstream references; the four human-facing guides remain the procedure.
+
+Pi commands target a separate test machine, not this repository's development host. Confirm the operator's target and authorization, and distinguish documentation edits from live administration. All hardware procedures remain untested; a site build is not a hardware test. Preserve the human-first guides and keep agent-specific workflow guidance in the companion.
+
 ## Development
 
 Use Deno 2 for dependency management and project commands, not npm, npx, pnpm, Yarn, or Bun. Installation and production builds have been verified with Deno 2.9.5.

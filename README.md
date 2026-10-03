@@ -17,7 +17,7 @@ Dependencies and scripts are defined in `package.json`; Deno resolves packages f
 
 ## Content
 
-The site has an overview and four main guides:
+The site has an overview, four main guides, and a separate agent assistance companion:
 
 | File in `src/content/docs/` | Purpose |
 | --- | --- |
@@ -26,6 +26,7 @@ The site has an overview and four main guides:
 | `guides/dietpi.md` | Selective service and package reduction with resource tradeoffs. |
 | `guides/kicksecure.md` | SSH, firewall, update checks, and confinement limits. |
 | `guides/nix.md` | Optional declarative user packages and rollback. |
+| [`reference/agent-assistance.md`](src/content/docs/reference/agent-assistance.md) | Agent reading path, command semantics, decision gates, and resumable handoff. |
 
 Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
 

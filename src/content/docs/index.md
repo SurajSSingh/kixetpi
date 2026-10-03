@@ -22,6 +22,10 @@ These instructions combine upstream documentation with proposed integration choi
 
 Complete each stage's checks before continuing. Stopping after stage 3 is a complete path. Nix is opt-in, not a dependency of the lean or hardened configuration.
 
+### Working with an AI agent
+
+The four stages are written for you to follow directly. If an AI agent is helping, give it the separate [agent assistance companion](/reference/agent-assistance/) for a reading path, command references, and decision checkpoints. It supplements these instructions without turning them into an unattended setup script.
+
 ## What can be carried over
 
 Raspberry Pi OS, DietPi, and Kicksecure use Debian foundations, but that does not make their repositories or configuration packages interchangeable. They make different choices about kernels, supported machines, services, package dependencies, and release lifecycles.

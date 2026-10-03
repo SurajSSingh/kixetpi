@@ -18,6 +18,12 @@ export default defineConfig({
 						{ label: '4. Nix for your home', slug: 'guides/nix', badge: 'Optional' },
 					],
 				},
+				{
+					label: 'Reference',
+					items: [
+						{ label: 'Assisting with an AI agent', slug: 'reference/agent-assistance' },
+					],
+				},
 			],
 		}),
 	],
