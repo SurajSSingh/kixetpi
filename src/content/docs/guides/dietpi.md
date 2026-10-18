@@ -172,6 +172,8 @@ sudo apt-get install PACKAGE_NAME
 
 APT may install a newer version. Restore configuration and data from the backup as needed, then check the service's recorded enablement state. If the base no longer boots or networking fails, use the known-good card rather than attempting a broad reinstall over SSH.
 
+A simple, explicitly requested installation may complete without a confirmation question. Review the simulation before invoking it, inspect the actual output, and answer a prompt only when one is present; do not add `-y` to make interaction predictable.
+
 **Reference:** [apt-get remove, purge, and install](https://manpages.debian.org/trixie/apt/apt-get.8.en.html).
 
 ## 4. Bound logs without discarding them at reboot
@@ -251,7 +253,7 @@ vmstat 1 10
 sudo journalctl -k -b --no-pager
 ```
 
-**Reference:** [free](https://manpages.debian.org/trixie/procps/free.1.en.html), [swapon](https://manpages.debian.org/trixie/util-linux/swapon.8.en.html), [zramctl](https://manpages.debian.org/trixie/util-linux/zramctl.8.en.html), [vmstat](https://manpages.debian.org/trixie/procps/vmstat.8.en.html), and [journalctl kernel filter](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html).
+**Reference:** [free](https://manpages.debian.org/trixie/procps/free.1.en.html), [swapon](https://manpages.debian.org/trixie/mount/swapon.8.en.html), [zramctl](https://manpages.debian.org/trixie/util-linux/zramctl.8.en.html), [vmstat](https://manpages.debian.org/trixie/procps/vmstat.8.en.html), and [journalctl kernel filter](https://manpages.debian.org/trixie/systemd/journalctl.1.en.html).
 
 Empty `zramctl` output can mean no zram devices exist. In `vmstat`, ignore the first row when comparing current activity; it summarizes time since boot. Look for sustained swap traffic, poor response times, or out-of-memory messages during the workload.
 
