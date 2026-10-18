@@ -19,3 +19,8 @@ pnpm-debug.log*
 
 # macOS-specific files
 .DS_Store
+
+# disposable VM state, image downloads, credentials, and raw test output
+/.lima/
+/.vm-images/
+/.vm-runs/

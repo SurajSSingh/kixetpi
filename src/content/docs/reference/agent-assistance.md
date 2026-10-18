@@ -107,6 +107,12 @@ For a command-compatibility trial rather than live Pi administration, use the se
 
 Keep the controlling agent and its evidence on the Mac, outside the guest. Resolve each command's host/guest context and working directory before launching it. Lima shell and copy operations use SSH and are not independent recovery consoles. Protect against concurrent APT, installer, activation, reboot, or restore operations on the same guest.
 
+The repository-local `deno task vm:probe` launcher is an infrastructure probe, not a guide installer. **With the tested Kilo sandbox, the operator must start and stop the VM from a normal Mac terminal outside the sandbox.** Sandboxed creation succeeded, but VZ startup failed; the later normal stop attempt was denied when signaling the external host-agent process. Do not retry lifecycle operations through another execution boundary, force-stop, or broaden permissions to avoid these restrictions. An unrestricted agent may be able to manage lifecycle itself with authorization, but that is environment-dependent, not a verified capability of this sandbox.
+
+After operator startup reaches `READY`, the sandboxed agent owns the remaining approved guest-side test work through Lima shell/SSH, subject to guest privileges, tool support, and the guide's checkpoints. At 02:05 UTC on 18 October 2026, it successfully ran the complete corrected baseline probe, including privileged journal inspection and network discovery. This verifies those commands, not every interactive installer, console-recovery test, or the full walkthrough. Ask for operator shutdown when work is finished and independently confirm `status` reports `Stopped`. The latest recorded operator shutdown was confirmed by the agent at 02:13 UTC.
+
+Preserve the distinction between operator-reported lifecycle actions and agent-observed state/guest checks. Use explicit actions sequentially and inspect `status` after a failed or timed-out lifecycle request; a timeout or SSH disconnect does not establish shutdown. The local `test` instance is separate from the manual page's default-home `kixetpi-test` example. Kilo's active sandbox also blocks managed background launches independently of file permissions; use finite blocking commands where supported and do not present extra directory approvals as a fix for that restriction.
+
 ### Completion is not interaction
 
 | Situation | Agent handling |
