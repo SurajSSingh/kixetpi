@@ -24,6 +24,7 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'Assisting with an AI agent', slug: 'reference/agent-assistance' },
+						{ label: 'VM command test run', slug: 'reference/vm-test-run' },
 					],
 				},
 			],

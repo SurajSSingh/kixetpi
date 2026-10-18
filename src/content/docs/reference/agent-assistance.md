@@ -101,6 +101,30 @@ For example, an inactive `bluetooth.service` is not a failed reduction needing r
 
 Likewise, an inactive firewall service does not establish that the ruleset is empty. Follow the firewall inspection section. Existing container/VPN rules or missing console recovery mean the fresh-UFW example cannot proceed; `ufw reset` is not a way to satisfy its preconditions.
 
+## Run VM preflight jobs
+
+For a command-compatibility trial rather than live Pi administration, use the separate [VM command test run](/kixetpi/reference/vm-test-run/). Its guest is disposable Debian ARM64 under Lima. Obtain authorization for the named VM and its mutations; permission to edit documentation does not authorize starting it. VM fixtures and recovery substitutions do not satisfy the Pi walkthrough's prerequisites.
+
+Keep the controlling agent and its evidence on the Mac, outside the guest. Resolve each command's host/guest context and working directory before launching it. Lima shell and copy operations use SSH and are not independent recovery consoles. Protect against concurrent APT, installer, activation, reboot, or restore operations on the same guest.
+
+### Completion is not interaction
+
+| Situation | Agent handling |
+| --- | --- |
+| A finite command is running without requesting input, such as image startup, a Nix build, or a reviewed package transaction. | Use a blocking shell with a suitable timeout, or a managed process tool that captures output and the eventual exit status. If the process exceeds the turn's time/output budget, retain its job identity and wait for completion rather than relaunching it. |
+| A harness supports process-exit notifications or automatic resume. | Prefer that event to guessed sleep intervals. With a managed background-process tool, use its monitor mode for finite jobs and its supported completion event if the monitor returns while the job is still running. A returned process ID or readiness line is not completion. |
+| No completion notification is available, or the job is a reboot/reconnect boundary. | Schedule one bounded wakeup and perform a fresh readiness/state check when resumed. In a session-goal harness, suspend through its scheduling mechanism instead of occupying the goal with repeated shell sleeps. Time elapsed alone does not establish readiness. |
+| The command asks for a password, confirmation, editor input, or installer decision. | It is interactive, not merely slow. Continue only through a supported persistent terminal/PTY and a previously authorized, understood response. If unavailable, mark the step blocked or hand it to an operator. A timer cannot supply input. |
+| A command or SSH connection timed out. | Establish whether the guest-side operation is still running before retrying or rebooting. A killed host SSH client can leave work in the VM. Do not remove APT lock files, start a second installer, or activate a second generation speculatively. |
+
+For example, an agent with a managed `background_process` tool can monitor `limactl start --tty=false --timeout=15m kixetpi-test` on the Mac. Keep the tool's process ID, output, and exit status, and use its completion notification when available. For long guest jobs, run an explicit `limactl shell --workdir=... kixetpi-test ...` command through the same mechanism. Do not assume a background tool provides interactive stdin or a PTY.
+
+After a job completes, inspect its actual exit status and run the relevant behavioral assertion before advancing. A completed Nix build permits reviewing activation, not claiming activation occurred. A disconnect after `sudo reboot` requires a new connection and checks of the next boot, not repeated reboots. If a process is waiting at an input prompt, preserve its state and stop queuing dependent commands.
+
+Do not convert the walkthrough into unattended success by piping `yes`, setting a blanket noninteractive package environment, adding `-y`/`--force`, granting extra passwordless sudo, skipping checksum review, or suppressing access checks. Lima's `--tty=false` only controls Lima's own interface; it does not answer guest APT, sudo, or Nix installer prompts. A recorded VM-only fixture or adapted file transfer must remain distinguishable from testing the original interactive command.
+
+Before an unattended run, agree on allowed changes, acceptable fixture substitutions, resource/time budgets, expected failure states, and the recovery/discard boundary. Stop and record blocked when required access or interaction is unavailable. Do not mark a blocked assertion failed solely because the agent lacks a tool, or passed because another command succeeded.
+
 ## Leave a resumable record
 
 Use the existing walkthrough record for measurements and results. Add a compact handoff like this when an agent pauses or another agent takes over. This is a notes template, not shell input; do not include credentials or private keys.

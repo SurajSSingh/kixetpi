@@ -26,6 +26,8 @@ Complete each stage's checks before continuing. Stopping after stage 3 is a comp
 
 The four stages are written for you to follow directly. If an AI agent is helping, give it the separate [agent assistance companion](/kixetpi/reference/agent-assistance/) for a reading path, command references, and decision checkpoints. It supplements these instructions without turning them into an unattended setup script.
 
+Before a hardware walkthrough, the separate [VM command test run](/kixetpi/reference/vm-test-run/) proposes a Lima-based Debian ARM64 preflight on an Apple Silicon Mac. It can expose command and integration errors, but does not validate Raspberry Pi hardware or replace the four stages' checkpoints.
+
 ## What can be carried over
 
 Raspberry Pi OS, DietPi, and Kicksecure use Debian foundations, but that does not make their repositories or configuration packages interchangeable. They make different choices about kernels, supported machines, services, package dependencies, and release lifecycles.
