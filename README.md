@@ -37,7 +37,7 @@ All commands are run from the root of the project, from a terminal:
 | Command                   | Action                                          |
 | :------------------------ | :---------------------------------------------- |
 | `deno install`            | Installs dependencies                           |
-| `deno task dev`           | Starts local dev server at `localhost:4321`      |
+| `deno task dev`           | Starts local dev server at `localhost:4321/kixetpi/` |
 | `deno task build`         | Build your production site to `./dist/`          |
 | `deno task preview`       | Preview your build locally, before deploying    |
 | `deno task astro ...`     | Run CLI commands like `astro add`, `astro check` |
@@ -51,6 +51,12 @@ Run `deno task build` to validate content and generate the static site and searc
 
 Keep source links next to the relevant guidance, distinguish upstream facts from project choices, and record hardware test results before claiming support. Do not add distribution conversion scripts or run the guide's system commands on the documentation host.
 
-Deployment has no configured public URL yet. Set Astro's `site` only when the actual destination is known, and configure `base` and content links if hosting under a subpath.
+## GitHub Pages
+
+The site is configured for <https://surajssingh.github.io/kixetpi/>. In the repository's **Settings > Pages > Build and deployment**, select **GitHub Actions** as the source (a one-time setup).
+
+The workflow in `.github/workflows/deploy.yml` builds and publishes on every push to `main`, and can also be run manually from the Actions tab. It uses Astro's official Pages action with Deno 2.9.5, the existing `deno.lock`, and `deno task build`, then deploys the generated artifact with GitHub's official Pages action. No deployment branch or personal access token is needed.
+
+Astro's `site` and `base` are set in `astro.config.mjs`. Internal Markdown links include the `/kixetpi` prefix; update these along with the config if the hosting path changes. Local development and preview use this same prefix.
 
 Site tooling references are the [Starlight documentation](https://starlight.astro.build/) and [Astro documentation](https://docs.astro.build/).

@@ -6,7 +6,7 @@ description: Audit and reduce Raspberry Pi OS Lite without converting it to Diet
 Keep Raspberry Pi OS Lite and make only the reductions your workload supports. DietPi provides the model of a small base with deliberately selected services. Its management tools assume a DietPi installation and are not an add-on for Raspberry Pi OS.
 
 :::caution[Untested integration]
-Complete the [base setup](/guides/raspberry-pi-os/) and its backup checkpoint first. All commands here run on the test Pi. No savings have been measured, and there is no target package count or RAM figure.
+Complete the [base setup](/kixetpi/guides/raspberry-pi-os/) and its backup checkpoint first. All commands here run on the test Pi. No savings have been measured, and there is no target package count or RAM figure.
 :::
 
 ## What changes and how to recover
@@ -292,7 +292,7 @@ Record each intentionally disabled unit, removed package, and changed file. Keep
 | Previous-boot logs disappear. | Check persistent journal configuration and storage space. Do not continue by disabling logging. |
 | APT cannot resolve repositories. | Restore networking, DNS, or time services if changed. Never bypass signature or TLS checks. |
 
-If checks pass, record the result and make a new known-good backup. Continue to [Kicksecure-inspired hardening](/guides/kicksecure/).
+If checks pass, record the result and make a new known-good backup. Continue to [Kicksecure-inspired hardening](/kixetpi/guides/kicksecure/).
 
 ## Sources and review status
 

@@ -3,7 +3,7 @@ title: 3. Adapt Kicksecure's hardening practices
 description: Harden access and reduce exposure on Raspberry Pi OS without adding Kicksecure repositories or claiming its full security model.
 ---
 
-Keep the Raspberry Pi OS base from [stage 1](/guides/raspberry-pi-os/) and the reviewed reductions from [stage 2](/guides/dietpi/). This stage applies a small set of access controls, then checks which confinement mechanisms the actual Pi supports.
+Keep the Raspberry Pi OS base from [stage 1](/kixetpi/guides/raspberry-pi-os/) and the reviewed reductions from [stage 2](/kixetpi/guides/dietpi/). This stage applies a small set of access controls, then checks which confinement mechanisms the actual Pi supports.
 
 :::caution[Untested integration, local recovery required]
 Use a test Pi with a known-good card backup and working local console access. SSH and firewall changes can lock you out. Keep your first SSH session open, but do not treat it as a substitute for a console. No hardening or recovery procedure here has passed a hardware test.
@@ -44,7 +44,7 @@ sudo -l
 
 **Reference:** Installed `man os-release`, `man dpkg`, `man uname`, `man apt-cache`, `man systemctl`, `man ss`, and `man sudo` describe these diagnostic commands.
 
-Keep the image's Raspberry Pi and Debian or Raspbian package sources. Follow [stage 1's reviewed APT update and reboot steps](/guides/raspberry-pi-os/#5-confirm-the-release-and-update-normally), not `rpi-update`. Raspberry Pi recommends a fresh image for a major release change, not changing APT release names.
+Keep the image's Raspberry Pi and Debian or Raspbian package sources. Follow [stage 1's reviewed APT update and reboot steps](/kixetpi/guides/raspberry-pi-os/#5-confirm-the-release-and-update-normally), not `rpi-update`. Raspberry Pi recommends a fresh image for a major release change, not changing APT release names.
 
 Review whether `sudo -l` grants `NOPASSWD: ALL`. If it does, code running as that user can normally obtain root without knowing a password. Even password-protected sudo is not a sandbox for malicious code in your own account.
 
@@ -342,7 +342,7 @@ sudo ufw status verbose
 
 Explain why each remaining listening service is needed. Record which applications AppArmor confines and which it does not, including when AppArmor is unavailable. Back up this working state before adding more software.
 
-You can stop here and keep an APT-only system. If the hardware has enough resources and you want declarative user packages, continue to the [optional Nix guide](/guides/nix/).
+You can stop here and keep an APT-only system. If the hardware has enough resources and you want declarative user packages, continue to the [optional Nix guide](/kixetpi/guides/nix/).
 
 ## Sources and review status
 

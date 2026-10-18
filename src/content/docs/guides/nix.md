@@ -3,7 +3,7 @@ title: 4. Add declarative user packages with Nix
 description: Optionally install Nix and Home Manager alongside Raspberry Pi OS while APT continues to own the operating system.
 ---
 
-You can stop after [hardening](/guides/kicksecure/) and use APT alone. This stage lets you list your user tools in a configuration file, reuse that configuration, and return to earlier package environments. It does not convert the Pi to NixOS.
+You can stop after [hardening](/kixetpi/guides/kicksecure/) and use APT alone. This stage lets you list your user tools in a configuration file, reuse that configuration, and return to earlier package environments. It does not convert the Pi to NixOS.
 
 :::caution[Optional and untested on this project]
 This path targets a compatible Pi running 64-bit Raspberry Pi OS Lite. It adds a privileged background service, build accounts, and a package store. You must update Nix and its packages separately from APT. We have not measured resource use or tested Home Manager activation on a Pi. Use the separate test Pi, not the documentation computer.

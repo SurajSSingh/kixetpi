@@ -15,16 +15,16 @@ These instructions combine upstream documentation with proposed integration choi
 
 | Stage | What you will do | What stays unchanged |
 | --- | --- | --- |
-| [1. Set up Raspberry Pi OS Lite](/guides/raspberry-pi-os/) | Choose an image, establish access, update, and record a baseline. | The official Raspberry Pi OS base. |
-| [2. Adapt DietPi practices](/guides/dietpi/) | Audit services and packages, keep only what you need, and set a modest log budget. | No DietPi conversion, repositories, or management scripts. |
-| [3. Adapt Kicksecure practices](/guides/kicksecure/) | Reduce remote exposure, verify updates, and check available confinement. | No Kicksecure conversion, replacement kernel, or boot stack. |
-| [4. Add Nix optionally](/guides/nix/) | Declare a small user package set with Home Manager. | APT continues to own the operating system. |
+| [1. Set up Raspberry Pi OS Lite](/kixetpi/guides/raspberry-pi-os/) | Choose an image, establish access, update, and record a baseline. | The official Raspberry Pi OS base. |
+| [2. Adapt DietPi practices](/kixetpi/guides/dietpi/) | Audit services and packages, keep only what you need, and set a modest log budget. | No DietPi conversion, repositories, or management scripts. |
+| [3. Adapt Kicksecure practices](/kixetpi/guides/kicksecure/) | Reduce remote exposure, verify updates, and check available confinement. | No Kicksecure conversion, replacement kernel, or boot stack. |
+| [4. Add Nix optionally](/kixetpi/guides/nix/) | Declare a small user package set with Home Manager. | APT continues to own the operating system. |
 
 Complete each stage's checks before continuing. Stopping after stage 3 is a complete path. Nix is opt-in, not a dependency of the lean or hardened configuration.
 
 ### Working with an AI agent
 
-The four stages are written for you to follow directly. If an AI agent is helping, give it the separate [agent assistance companion](/reference/agent-assistance/) for a reading path, command references, and decision checkpoints. It supplements these instructions without turning them into an unattended setup script.
+The four stages are written for you to follow directly. If an AI agent is helping, give it the separate [agent assistance companion](/kixetpi/reference/agent-assistance/) for a reading path, command references, and decision checkpoints. It supplements these instructions without turning them into an unattended setup script.
 
 ## What can be carried over
 
@@ -100,4 +100,4 @@ Status: not tested / passed on this setup / failed / skipped with reason
 
 A passing result applies only to the recorded hardware, image, and configuration. Capture troubleshooting details where the failure occurs before revising the instructions. Do not turn an untested suggestion into a claimed default for every Pi.
 
-Start with [Raspberry Pi OS Lite](/guides/raspberry-pi-os/).
+Start with [Raspberry Pi OS Lite](/kixetpi/guides/raspberry-pi-os/).

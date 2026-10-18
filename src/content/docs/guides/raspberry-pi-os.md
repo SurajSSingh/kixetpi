@@ -202,7 +202,7 @@ Reconnect, confirm `uname -r`, and check `systemctl --failed`. Raspberry Pi's AP
 
 ## 6. Record an unchanged baseline
 
-Before any DietPi-inspired changes, collect the following output and keep a copy with your [walkthrough record](/#record-the-first-hardware-walkthrough) outside the card:
+Before any DietPi-inspired changes, collect the following output and keep a copy with your [walkthrough record](/kixetpi/#record-the-first-hardware-walkthrough) outside the card:
 
 ### Resources and boot
 
@@ -257,7 +257,7 @@ Before the next stage, confirm all of the following:
 | Unexpected release or architecture. | Re-image with the intended compatible Lite image. Do not convert the running userspace in place. |
 | An upgrade no longer boots. | Boot the known-good card and preserve logs or data from the failed card before re-imaging. |
 
-Preserve the verified baseline card or a restore-tested full-card image after these checks. Continue on the separate test card to [DietPi-inspired reduction](/guides/dietpi/).
+Preserve the verified baseline card or a restore-tested full-card image after these checks. Continue on the separate test card to [DietPi-inspired reduction](/kixetpi/guides/dietpi/).
 
 ## Sources and review status
 
