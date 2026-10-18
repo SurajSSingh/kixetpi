@@ -8,7 +8,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "vm:probe": "deno run --allow-read=. --allow-write=. --allow-run=limactl,curl,shasum vm-tests/run.ts"
+    "vm:probe": "deno run --allow-read=. --allow-write=. --allow-run=limactl,curl,shasum vm-tests/run.ts",
+    "vm:start": "deno task vm:probe start-session",
+    "vm:test": "deno test --allow-run=/bin/bash --allow-read=.vm-runs --allow-write=.vm-runs vm-tests/"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.4",

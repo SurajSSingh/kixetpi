@@ -1,7 +1,10 @@
 // Run from the repository root. Deno permissions do not relax the host sandbox.
 // This probe does not install guest packages or change access policy.
+import { startWithScreen } from "./screen.ts";
+import { createCommandRunner } from "./command.ts";
+
 const action = Deno.args[0];
-const actions = ["preflight", "prepare", "create", "start", "check", "status", "stop"];
+const actions = ["preflight", "prepare", "create", "start", "start-session", "check", "status", "stop"];
 if (Deno.args.length !== 1 || !actions.includes(action)) {
   console.log(
     "Usage: deno run --allow-read=. --allow-write=. --allow-run=limactl,curl,shasum vm-tests/run.ts <action>",
@@ -82,64 +85,7 @@ await Deno.writeTextFile(
   { createNew: true, mode: 0o600 },
 );
 
-let sequence = 0;
-async function command(label: string, args: string[]): Promise<string> {
-  console.log(`Running: ${args.join(" ")}`);
-  const prefix = `${run}/${String(++sequence).padStart(2, "0")}-${label}`;
-  const started = new Date().toISOString();
-  await Deno.writeTextFile(`${prefix}.json`, `${JSON.stringify({ args, started, state: "started" })}\n`, {
-    createNew: true,
-    mode: 0o600,
-  });
-  const stdoutLog = await Deno.open(`${prefix}.stdout.log`, { write: true, createNew: true, mode: 0o600 });
-  const stderrLog = await Deno.open(`${prefix}.stderr.log`, { write: true, createNew: true, mode: 0o600 });
-  let child: Deno.ChildProcess;
-  try {
-    child = new Deno.Command(args[0], {
-      args: args.slice(1),
-      cwd: root,
-      env: { LIMA_HOME: home, TMPDIR: temporary },
-      stdin: "null",
-      stdout: "piped",
-      stderr: "piped",
-    }).spawn();
-  } catch (error) {
-    stdoutLog.close();
-    stderrLog.close();
-    throw error;
-  }
-  const [stdoutDisk, stdoutTerminal] = child.stdout.tee();
-  const [stderrDisk, stderrTerminal] = child.stderr.tee();
-  const [result] = await Promise.all([
-    child.status,
-    stdoutDisk.pipeTo(stdoutLog.writable),
-    stderrDisk.pipeTo(stderrLog.writable),
-    stdoutTerminal.pipeTo(Deno.stdout.writable, { preventClose: true }),
-    stderrTerminal.pipeTo(Deno.stderr.writable, { preventClose: true }),
-    Deno.writeTextFile(`${prefix}.json`, `${JSON.stringify({ args, started, pid: child.pid, state: "running" })}\n`),
-  ]);
-  await Deno.writeTextFile(
-    `${prefix}.json`,
-    `${
-      JSON.stringify(
-        {
-          args,
-          started,
-          pid: child.pid,
-          state: "exited",
-          ended: new Date().toISOString(),
-          code: result.code,
-          signal: result.signal,
-        },
-        null,
-        2,
-      )
-    }\n`,
-    { mode: 0o600 },
-  );
-  if (!result.success) throw new Error(`${label} exited ${result.code}; inspect ${prefix}.* before retrying.`);
-  return await Deno.readTextFile(`${prefix}.stdout.log`);
-}
+const command = createCommandRunner({ root, home, temporary, run });
 
 async function verifyImage() {
   if (!(await Deno.lstat(image)).isFile) throw new Error("The base image must be a regular file, not a symlink.");
@@ -166,6 +112,7 @@ async function requireOwnedInstance() {
   }
 }
 
+let screenSession: string | undefined;
 try {
   if (action !== "status") {
     for (const file of ["default.yaml", "override.yaml"]) {
@@ -227,7 +174,12 @@ try {
     await command("inventory", ["limactl", "list", "--json"]);
   } else {
     await requireOwnedInstance();
-    if (action === "start") {
+    if (action === "start-session") {
+      screenSession = await startWithScreen(command, name);
+      console.log(`VM and Screen control window ready: ${screenSession}`);
+      console.log("Agent handoff: run vm:probe check, then inspect this Screen session before sending any input.");
+      console.log("The session is an ordinary-user guest shell, not a root recovery shell or independent console.");
+    } else if (action === "start") {
       await command("start", ["limactl", "start", "--tty=false", "--timeout=2m", name]);
     } else if (action === "stop") {
       await command("stop", ["limactl", "stop", name]);
@@ -253,7 +205,7 @@ try {
   }
   await Deno.writeTextFile(
     `${run}/result.json`,
-    `${JSON.stringify({ action, status: "completed", scope: "VM infrastructure probe, not a walkthrough pass" })}\n`,
+    `${JSON.stringify({ action, status: "completed", screenSession, scope: "VM infrastructure probe, not a walkthrough pass" })}\n`,
     { createNew: true, mode: 0o600 },
   );
 } catch (error) {

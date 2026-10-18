@@ -7,8 +7,8 @@ next: false
 
 Use this separate test track to find command, configuration, and integration errors before a Raspberry Pi walkthrough. The target is **Debian 13 Trixie ARM64 under Lima**, not an emulated Raspberry Pi or a new KixetPi image. The [four stage guides](/kixetpi/#follow-the-four-stages) remain the procedure being tested.
 
-:::caution[Baseline probe passed; full walkthrough untested]
-With the tested Kilo sandbox, the operator must start **and stop** this VM from a normal Mac terminal outside the sandbox. Sandboxed startup failed, and the later stop request was denied. The sandboxed agent successfully ran the complete corrected baseline probe against the externally started guest without changing permissions. This verifies the split workflow, not every command or interactive step below. The longer walkthrough remains proposed, not a recorded pass. A website build checks rendering, not these commands. The Raspberry Pi walkthrough remains untested.
+:::caution[Partial command preflight; full walkthrough untested]
+With the tested Kilo sandbox, the operator must start **and stop** this VM from a normal Mac terminal outside the sandbox. Sandboxed startup failed, and the later stop request was denied. The sandboxed agent successfully ran the complete corrected baseline probe and a later diagnostic/simulation preflight across stages 1-3 against the externally started guest without changing permissions. This verifies the split workflow, not every command or interactive step below. The longer walkthrough remains incomplete, not a recorded pass. A website build checks rendering, not these commands. The Raspberry Pi walkthrough remains untested.
 :::
 
 ## Scope and authorization
@@ -32,17 +32,48 @@ For the tested **sandboxed Kilo agent**, the operator owns host-level VM startup
 | Action | Who runs it in this setup |
 | --- | --- |
 | `preflight`, `prepare`, `create` | Agent, with approval for the project-local preparation; these succeeded inside the sandbox. |
-| `start` | Operator, outside the sandbox. Wait for `READY` before handing over. |
+| `start`, `start-session` (`vm:start`) | Operator, outside the sandbox. Wait for successful completion; the combined command also requires its Screen readiness message before handoff. |
 | `status`, `check`, and approved guest-side test commands | Sandboxed agent, with guest commands gated on a running VM and the procedure's prerequisites. The baseline checks passed. |
 | `stop` | Operator, outside the sandbox, after guest jobs finish. Then verify `status` reports `Stopped`. |
 
-The operator starts the existing VM from the repository root:
+The operator starts the existing VM **and its agent terminal session** from the repository root:
 
 ```sh title="Operator: normal Mac terminal outside Kilo's sandbox"
-deno task vm:probe start
+deno task vm:start
 ```
 
 The agent can then inspect state, run the probe, and carry out further authorized guest work through Lima shell/SSH. This is the intended division of work, not proof that every remaining guide command works unattended: interactive passwords/installers, console recovery, firewall lockout tests, and other tool limitations still need their documented prerequisites.
+
+### One-command Screen handoff
+
+`deno task vm:start` invokes `vm:probe start-session`. It keeps the existing version, ownership, and exact-profile guards, runs Lima's normal startup/readiness operation, confirms the named instance reports `Running`, then starts an ordinary-user GNU Screen session named `kixetpi-agent` inside the guest. It prints the full identifier, such as `123.kixetpi-agent`, and records it as `screenSession` in the private run's `result.json` only after a bounded query of window `0` succeeds. The original `deno task vm:probe start` remains available for **VM-only** startup.
+
+No new packages, sudo grants, SSH policy, host mounts, or guest boot services are installed. The prior guest inventory included Screen `4.9.1`; missing `screen`, `timeout`, or `flock` makes setup stop rather than install software. A private `~/.kixetpi-agent-start.lock` serializes guest session setup; its kernel lock is released when setup ends, and the detached shell does not inherit its descriptor. The shell uses no Bash profile/rc files, a recognizable `kixetpi> ` prompt, and no saved Bash history. Screen's user configuration is bypassed, but its system configuration can still apply. Terminal contents can remain sensitive even without saved shell history.
+
+This detached guest process is deliberately started by the **operator's command outside Kilo**, not by an agent bypassing the managed-background restriction. The command returns instead of attaching the operator's terminal. After success, the agent starts with `deno task vm:probe check` and uses finite Lima shell calls to inspect/control the emitted Screen identifier as the same guest user. For example, replace `PID.kixetpi-agent` with the exact printed identifier:
+
+```sh title="Agent on Mac, repository root: inspect the existing Screen control window"
+LIMA_HOME="$PWD/.lima" limactl shell --workdir=/ test \
+  timeout 5s screen -S PID.kixetpi-agent -p 0 -Q info
+```
+
+`-Q info` confirms control-window responsiveness, **not** the displayed prompt, successful input delivery, or completion of a job. Before submitting any guide command or answer, inspect the terminal contents using Screen's `hardcopy -h` mechanism with a fresh private guest snapshot path. Use `stuff` only for a specific reviewed input to that identified window; never blindly send `yes`, credentials, or a new command to a potentially busy shell. **Screen expands dollar variables and backslash escapes in `stuff` input.** Do not treat it as literal transport for arbitrary shell source. The verified workaround is to stage and syntax-check a private guest script through a separate Lima call, then type only its simple path invocation and the reviewed response. Capture each actual job's output and exit status separately; the Screen startup result is not its result. See the [Debian Screen manual](https://manpages.debian.org/trixie/screen/screen.1.en.html) for these control commands.
+
+Running the combined command again while a matching session exists **stops with an error and preserves the session**, even if it appears stale. It does not replace it, remove sockets, attach, or send input. Keep invocations sequential and inspect existing work before deciding to reuse or clean it up. The post-start inventory has a 15-second host deadline and guest session setup a 90-second host deadline in addition to its guest-side bounds. On a host deadline, the launcher terminates only its own CLI subprocess and records `timed-out` with an **indeterminate guest outcome**; a guest script or shell may still be running. A failure after Lima startup leaves the VM and any created Screen session intact; inspect the private run records and `vm:probe status` instead of assuming shutdown or retrying blindly.
+
+Screen survives a management-SSH disconnect, not a guest reboot or shutdown. After a reboot, the operator must recreate the session with `vm:start` after checking the guest's state; an old printed identifier must not be reused. Neither Screen nor its retained shell is an independent console or a tested backup. Baseline clones, firewall recovery, and optional sudo-password tests retain their separate prerequisites.
+
+Implementation checks use `deno task vm:test` for mocked startup and guest-shell tests plus local subprocess-recording/deadline tests; they do not launch Lima or a real Screen process. Live startup and a bounded prompt/input round trip were subsequently verified as recorded below. This does not establish every interactive program's behavior.
+
+### Recorded Screen handoff
+
+At **03:11 UTC on 18 October 2026**, the operator ran `deno task vm:start` outside the sandbox. Its private `result.json` recorded successful startup and session `741.kixetpi-agent`. The sandboxed agent independently confirmed `Running`, passed the baseline probe at **03:13 UTC**, queried the Screen window, and captured its idle `kixetpi>` prompt. The transient startup `no route to host` warning cleared before Lima satisfied its SSH/readiness requirements.
+
+The first agent-written input probe had a quoting error and exited the session shell; this was a verification-harness error, **not a launcher failure**. The operator reran the same startup command, creating `851.kixetpi-agent`. A second inline probe exposed Screen's expansion behavior described above and returned to the prompt without a valid result. Both failed attempts remain in private evidence rather than being counted as passes.
+
+At **03:17 UTC**, the corrected file-based fixture passed: stdin and stdout were TTYs, `hardcopy -h` captured the waiting `KIXETPI_INPUT_PROBE>` prompt, `stuff` delivered the simple `screen-roundtrip-ok` response, the fixture printed `KIXETPI_INPUT_OK`, and its separate status file recorded `0`. A subsequent snapshot showed `KIXETPI_PROBE_EXIT=0` and the returned `kixetpi>` prompt. Screen remained accessible across separate Lima calls; the shell had no child job afterward. A separate `flock -n` check confirmed the startup lock was available while Screen remained running. The guest still had zero failed units and a clean `dpkg --audit`.
+
+The final observed handoff was the **running** VM with idle ordinary-user session `851.kixetpi-agent`, not a recovery root shell. Only private fixture/script/snapshot/status files and ordinary diagnostic logs were written; no packages, access policy, or guest configuration were changed. No reboot, console recovery, clone restore, password-required sudo, APT confirmation, or full guide checkpoint passed during this test. Private evidence is under `.vm-runs/screen-roundtrip-*` and `.vm-runs/walkthrough-screen-*`; the operator's initial result is in `.vm-runs/2026-10-18T03-11-49-256Z-start-session-9f59565924724836/`, and the independent baseline is in `.vm-runs/2026-10-18T03-13-03-002Z-check-82dc336bfba3c7d0/`.
 
 Once guest work has finished, the operator stops the VM and checks its state:
 
@@ -56,6 +87,7 @@ Inspect the stop result before the status check; never infer shutdown merely fro
 | Path | Purpose | Git handling |
 | --- | --- | --- |
 | `vm-tests/run.ts` | Versioned profile, image checksum, bounded commands, and baseline assertions. | Tracked. |
+| `vm-tests/screen.ts`, `vm-tests/command.ts`, and their `_test.ts` files | Operator-started Screen handoff, recorded command deadlines, and isolated tests; no real VM/Screen startup during tests. | Tracked. |
 | `.lima/` | Instance configuration, generated private identity, sparse disk, and runtime sockets. | Ignored; never publish. |
 | `.vm-images/` | Verified pinned base image; local input avoids Lima's macOS image-download cache. | Ignored. |
 | `.vm-runs/` | Per-invocation configuration, stdout/stderr, exit statuses, raw results, and cloud-init temporary storage. | Ignored; review and sanitize before sharing. |
@@ -83,7 +115,7 @@ deno task vm:probe create
 Creation is not a dry run: it creates disks, cloud-init data, and credentials, but does not boot Linux. After reviewing its result, hand startup to the operator:
 
 ```sh title="Operator, normal Mac terminal outside Kilo: two-minute readiness wait"
-deno task vm:probe start
+deno task vm:start
 ```
 
 The readiness timeout does not bound all preparation or prove a VM stopped. After an error or disconnected tool, inspect state rather than repeating the start:
@@ -179,6 +211,33 @@ The operator's outside-sandbox capability query returned `1`, and the actual VM 
 Kilo's current sandbox configuration has no documented per-command virtualization or sysctl allowlist field. Adding a shell approval or more writable directories cannot enable the missing native capability query. A targeted sandbox-policy fix would need to be supported by Kilo, rather than invented as a project setting. A test-only unsandboxed session is a broader alternative requiring separate approval, not something this launcher requests or performs.
 
 Managed background-process launches are also blocked independently by Kilo's active sandbox. This trial used finite blocking shell commands, preserving their output and exit statuses. Moving files into the repository does not enable completion-triggered background-tool wakeups. See the companion's [job handling](/kixetpi/reference/agent-assistance/#run-vm-preflight-jobs) for the interaction and scheduling distinctions.
+
+### Partial stages 1-3 command preflight
+
+At **02:27-02:31 UTC on 18 October 2026**, the operator had already started the project-local `test` instance. Against guide revision `fcad3a2796813df08fa25ee77724da69e90fdc50`, the sandboxed agent confirmed `Running`, reran the baseline probe, and exercised the safe diagnostics and simulations below. These are command-compatibility observations, **not completed stage checkpoints**. Later-stage inspections did not bypass the unfinished stage 1 upgrade/recovery gate.
+
+The guest was Debian 13.6 Trixie, `arm64`/`64`/`aarch64`, with kernel `6.12.95+deb13-cloud-arm64`, systemd `257.13-1~deb13u1`, APT `3.0.3`, and OpenSSH server `1:10.0p1-7+deb13u4`. The baseline had 1.9 GiB RAM, approximately 1.8 GiB available, no swap, and approximately 662 MiB used on the 16 GiB root filesystem. These idle VM measurements are not Pi savings or an application-load test.
+
+| Area | Observed result and limit |
+| --- | --- |
+| Base identity, network, and clock | Passed release/architecture/PID-1 checks, route and DNS discovery, and synchronized time with active NTP. Pi model and `/boot/firmware` paths were absent as expected; the guest uses `/boot/efi`. |
+| Resource, service, port, and package inventory | Commands succeeded except the ordinary-user lookup of `swapon`; its installed absolute path worked. Zero failed units. Listeners were SSH, local DNS, DHCP, and systemd-resolved's LLMNR. |
+| APT refresh and upgrade proposal | `sudo apt update`, `apt list --upgradable`, and `sudo apt-get -s dist-upgrade` succeeded. The plan contained 55 upgrades, one new cloud-kernel package, and zero removals. No full upgrade or reboot was executed. |
+| Bluetooth discovery | Unit not found; its nonzero status checks were expected. No Bluetooth software was installed or enabled. |
+| Package review | Installed-package and dependency queries and simulated autoremove/removal worked. Simulating removal of `eject` also proposed removing `cloud-init`, so the removal gate correctly rejected it. Simulated `hello` installation proposed only that package; no package was installed or removed. |
+| Journal and memory inspection | Configuration, usage, SSH/kernel log filters, and previous-boot queries worked. Existing history spanned three boots and used 8 MiB. Absolute-path `zramctl` showed no devices; `vmstat 1 10` showed no swap traffic. This did not test the proposed journal drop-in or its reboot persistence. |
+| Sudo | `sudo -l` showed the fixture's `NOPASSWD: ALL`; `visudo -c` passed. The ordinary account's password was locked. No password-required sudo or console-login test passed. |
+| SSH policy inspection | `sshd -t`, unfiltered `sshd -T`, and `sshd -T -C` with the observed management connection succeeded. Password and keyboard-interactive authentication were already disabled; root key login remained permitted by `permitrootlogin without-password`. The four proposed directives passed syntax/effective-policy checks supplied as command-line `-o` options only, not as an installed drop-in or running-server change. |
+| SSH activation paths | TCP `ssh.service` was active, alongside generated VSock and Unix-local SSH sockets. Lima shell reused its management connection; this was not a fresh, independently verified TCP authentication test. |
+| Firewall discovery | nftables/firewalld/UFW services were inactive or absent. `nft` and UFW were not installed. IPv4/IPv6 iptables save commands, including legacy variants, returned empty rules; forwarding was disabled. UFW installation simulation proposed only UFW. No UFW staging, activation, filtering, or console recovery was tested. |
+| AppArmor | LSM discovery and `sudo aa-status` succeeded: 106 profiles loaded, seven enforcing, 23 complain, 76 unconfined, and zero currently profiled processes. This is not application confinement evidence. |
+| Existing unattended-upgrades | `sudo unattended-upgrade --dry-run --debug` completed successfully using Debian Trixie and Debian security origins, excluding updates/backports under the existing policy. It populated download/cache/log state but did not upgrade packages. Its final "All upgrades installed" message was simulation output, not an applied update. |
+
+**VM path adaptation:** this account's `PATH` omitted `/usr/sbin`, although `/usr/sbin/swapon` and `/usr/sbin/zramctl` were installed. The bare `swapon --show` command failed with exit 127, and ordinary `command -v zramctl` did not find the installed tool. Use the verified absolute paths for this VM; do not install duplicate packages or alter the Mac's `PATH` to address guest lookup failures. This observation does not establish Raspberry Pi OS's login defaults.
+
+**Pause boundary:** the runner has no supported interactive stdin/terminal, no preserved stopped baseline clone was present, and no independent recovery console was demonstrated. Full upgrade, actual package transactions, fixture service/isolation changes, journal-policy changes, reboots, SSH-policy application/authentication-transition tests, and UFW changes remain **blocked or not run**, not failed guide commands. Optional sudo-password testing also needs a known disposable password and a retained recovery root shell. Resume mutation testing only after the operator provides the applicable recovery and interaction prerequisites. Do not bypass prompts with `-y`, change passwordless-sudo policy for convenience, or enable UFW over the management connection.
+
+Final guest checks found zero failed units, a clean `dpkg --audit`, working DNS/time synchronization, and unchanged sampled installed package versions. No guest configuration or access policy changed. The VM was left running for operator handoff at the end of the preflight. The operator subsequently reported shutdown; at **02:39 UTC**, the agent independently confirmed `Stopped` in `.vm-runs/2026-10-18T02-39-32-530Z-status-f1ddf5ef9499c647/`. Private preflight evidence is under ignored `.vm-runs/walkthrough-*`, with the baseline probe in `.vm-runs/2026-10-18T02-27-26-125Z-check-73383ce123a827d9/`. Preserve failed probe attempts too: an empty-shell-glob inspection error and the initial tool-lookup failures are harness/adaptation issues, not successful guide assertions.
 
 ## 1. Inspect the host and reserve names
 
@@ -294,7 +353,7 @@ ip -br address
 ip route
 timedatectl status
 free -h
-swapon --show
+/usr/sbin/swapon --show
 df -h /
 systemd-analyze
 systemctl --failed
@@ -310,7 +369,7 @@ apt-mark showmanual
 dpkg-query -W -f='${binary:Package}\t${Version}\n'
 ```
 
-Record missing tools and existing failed units before installing anything. Correct a wrong clock, broken DNS, or unexpected repositories before updates. Do not demand an empty warning journal or describe the VM's RAM/boot measurements as Pi savings.
+Record missing tools and existing failed units before installing anything. The absolute `swapon` path above accommodates the observed Debian VM account's missing `/usr/sbin` search path; verify installed paths rather than assuming an unfound command means a missing package. Correct a wrong clock, broken DNS, or unexpected repositories before updates. Do not demand an empty warning journal or describe the VM's RAM/boot measurements as Pi savings.
 
 ### Review updates separately
 
